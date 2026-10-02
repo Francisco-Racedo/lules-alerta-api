@@ -1,0 +1,15 @@
+# Dependencias (NUNCA se suben)
+node_modules/
+
+# Archivos compilados
+dist/
+tsconfig.build.tsbuildinfo
+
+# Credenciales y Seguridad (CRÍTICO)
+.env
+.env.*
+
+# Logs de sistema
+npm-debug.log
+yarn-error.log
+yarn.lock

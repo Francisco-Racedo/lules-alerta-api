@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitor Lules-Alerta</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #121212; color: #ffffff; padding: 30px; }
+        .panel { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        .alerta { background: #b71c1c; padding: 15px; margin-top: 15px; border-radius: 6px; border-left: 5px solid #ff5252; box-shadow: 0 4px 6px rgba(0,0,0,0.3); animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <h2 style="margin-top: 0;">🚨 Central de Monitoreo - Tiempo Real</h2>
+        <p style="color: #aaa; font-size: 14px;">Estado de conexión: <span id="estado" style="color: #ff5252;">Desconectado</span></p>
+        <div id="contenedor-alertas">
+            <p id="placeholder" style="color: #666; font-style: italic;">Esperando reportes ciudadanos...</p>
+        </div>
+    </div>
+
+    <script>
+        // Conectamos directamente al puerto de nuestro backend
+        const socket = io('http://localhost:3000');
+        const estadoSpan = document.getElementById('estado');
+
+        socket.on('connect', () => {
+            estadoSpan.textContent = '🟢 Conectado';
+            estadoSpan.style.color = '#4caf50';
+        });
+
+        socket.on('disconnect', () => {
+            estadoSpan.textContent = '🔴 Desconectado';
+            estadoSpan.style.color = '#ff5252';
+        });
+
+        // Escuchamos el evento exacto que emite nuestro Gateway
+        socket.on('nueva-alerta', (alerta) => {
+            const contenedor = document.getElementById('contenedor-alertas');
+            const placeholder = document.getElementById('placeholder');
+            
+            if(placeholder) placeholder.remove();
+
+            const div = document.createElement('div');
+            div.className = 'alerta';
+            div.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 5px;">NUEVO INCIDENTE REPORTADO</div>
+                <div style="font-size: 14px; margin-bottom: 5px;">📝 <strong>Detalle:</strong> ${alerta.description}</div>
+                <div style="font-size: 13px; color: #ffd54f;">📍 <strong>Ubicación:</strong> Lat ${alerta.location.coordinates[1]}, Lng ${alerta.location.coordinates[0]}</div>
+                <div style="font-size: 12px; color: #aaa; margin-top: 8px;">🆔 Emitido por Usuario: ${alerta.userId}</div>
+            `;
+            
+            // Colocamos la alerta más reciente arriba de todo
+            contenedor.prepend(div);
+        });
+    </script>
+</body>
+</html>
