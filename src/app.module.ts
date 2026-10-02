@@ -16,8 +16,11 @@ import { Alert } from './alerts/entities/alert.entity.js';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false, // Requerido para conexiones seguras con Supabase en la nube
+      ssl: true,
+      extra: {
+        ssl: {
+          rejectUnauthorized: false,
+        },
       },
       entities: [User, Alert],
       synchronize: true, 
