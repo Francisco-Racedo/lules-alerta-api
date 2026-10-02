@@ -12,17 +12,16 @@ import { Alert } from './alerts/entities/alert.entity.js';
     ConfigModule.forRoot({
       isGlobal: true, 
     }),
-    // 2. Inyectamos las variables usando process.env
+    // 2. Usamos directamente la URL completa de conexión (compatible con Render y Supabase)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      url: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false, // Requerido para conexiones seguras con Supabase en la nube
+      },
       entities: [User, Alert],
       synchronize: true, 
-      logging: false, // Desactivamos el logging para mantener la terminal limpia
+      logging: false,
     }),
     UsersModule,
     AlertsModule,
