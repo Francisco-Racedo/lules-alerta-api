@@ -18,18 +18,18 @@ import { Alert } from './alerts/entities/alert.entity.js';
       ttl: 60000, // Tiempo en milisegundos (60 segundos)
       limit: 10,  // Máximo 10 peticiones permitidas por IP en ese lapso
     }]),
+    // 2. Conexión a Base de Datos corregida para entorno local
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.DATABASE_URL,
-      ssl: true,
-      extra: {
-        ssl: {
-          rejectUnauthorized: false,
-        },
-      },
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
       entities: [User, Alert],
       synchronize: true, 
       logging: false,
+      // Se eliminó la exigencia de SSL para desarrollo local
     }),
     UsersModule,
     AlertsModule,

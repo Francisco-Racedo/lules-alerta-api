@@ -8,7 +8,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 
-@Entity('alerts') // Mapea con la tabla 'alerts' de PostgreSQL/PostGIS
+@Entity('alertas') // Mapea con la tabla 'alerts' de PostgreSQL/PostGIS
 export class Alert {
   @PrimaryGeneratedColumn('uuid')
   id: string;
