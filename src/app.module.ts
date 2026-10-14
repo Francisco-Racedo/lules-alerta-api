@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static'; // NUEVA IMPORTACIÓN
+import { join } from 'path'; // NUEVA IMPORTACIÓN
 import { UsersModule } from './users/users.module.js';
 import { AlertsModule } from './alerts/alerts.module.js';
 import { User } from './users/entities/user.entity.js';
@@ -29,7 +31,11 @@ import { Alert } from './alerts/entities/alert.entity.js';
       entities: [User, Alert],
       synchronize: true, 
       logging: false,
-      // Se eliminó la exigencia de SSL para desarrollo local
+    }),
+    // 3. NUEVO: Habilitar carpeta pública para las fotografías de perfil
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
     }),
     UsersModule,
     AlertsModule,

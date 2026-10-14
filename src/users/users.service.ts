@@ -83,4 +83,18 @@ export class UsersService {
 
     return await this.userRepository.save(user);
   }
+
+  // --- NUEVO MÉTODO AGREGADO: Guardar Fotografía de Perfil ---
+  async updateAvatar(id: string, fotoUrl: string) {
+    const user = await this.userRepository.preload({
+      id: id,
+      fotoPerfil: fotoUrl,
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado en el sistema`);
+    }
+
+    return await this.userRepository.save(user);
+  }
 }
