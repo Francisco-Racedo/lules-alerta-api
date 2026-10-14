@@ -1,30 +1,46 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('usuarios')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'nombre', type: 'varchar', length: 100 })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   nombre: string;
 
-  // El DNI debe ser único para evitar cuentas duplicadas
-  @Column({ name: 'dni', type: 'varchar', length: 10, unique: true })
+  @Column({ type: 'varchar', length: 8, unique: true, nullable: true })
   dni: string;
 
-  @Column({ name: 'telefono', type: 'varchar', length: 20 })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   telefono: string;
 
-  @Column({ name: 'password', type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', nullable: true })
   password: string;
 
-  // Conservamos tus excelentes métricas de seguridad y baneos de la Fase 1
-  @Column({ name: 'trust_score', type: 'int', default: 50 })
-  trustScore: number;
+  @Column({ type: 'varchar', length: 150, nullable: true, unique: true })
+  email: string;
 
-  @Column({ name: 'is_banned', type: 'boolean', default: false })
-  isBanned: boolean;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  direccion: string;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  barrio: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  fotoPerfil: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  contactoEmergenciaNombre: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  contactoEmergenciaTelefono: string;
+
+  @Column({ type: 'text', nullable: true })
+  datosMedicos: string;
+
+  @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
