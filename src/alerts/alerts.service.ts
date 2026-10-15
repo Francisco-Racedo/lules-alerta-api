@@ -14,16 +14,18 @@ export class AlertsService {
   ) {}
 
   async create(createAlertDto: CreateAlertDto): Promise<Alert> {
-    // Extraemos los nuevos campos opcionales del DTO
-    const { description, latitude, longitude, userId, address, imageUrl } = createAlertDto;
+    // CORRECCIÓN: Extraemos la 'category' que ahora viene del DTO
+    const { category, description, latitude, longitude, userId, address, imageUrl } = createAlertDto;
 
     const newAlert = this.alertRepository.create({
+      category,    // Guardamos la categoría
       description,
       userId,
-      address,   // Agregado
-      imageUrl,  // Agregado
+      address,   
+      imageUrl,  
       location: {
         type: 'Point',
+        // PostGIS exige longitud primero, latitud después. ¡Esto ya lo tenías perfecto!
         coordinates: [longitude, latitude],
       },
     });
@@ -75,5 +77,19 @@ export class AlertsService {
       currentPage: page,
       lastPage: Math.ceil(total / limit),
     };
+  }
+
+  // NUEVO MÉTODO: Guarda la ruta de la evidencia fotográfica en la base de datos
+  async updateImage(id: string, imageUrl: string): Promise<Alert> {
+    const alert = await this.alertRepository.preload({
+      id: id,
+      imageUrl: imageUrl,
+    });
+
+    if (!alert) {
+      throw new NotFoundException(`La alerta con el ID especificado no existe.`);
+    }
+
+    return await this.alertRepository.save(alert);
   }
 }

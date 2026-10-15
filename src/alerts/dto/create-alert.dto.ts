@@ -2,6 +2,12 @@ import { IsString, IsNotEmpty, IsNumber, IsUUID, Min, Max, IsOptional, IsUrl } f
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAlertDto {
+  // NUEVO: Validación de la categoría obligatoria
+  @ApiProperty({ description: 'Categoría del incidente', example: 'Robo / Sospecha' })
+  @IsString()
+  @IsNotEmpty({ message: 'La categoría del incidente es obligatoria' })
+  category: string;
+
   @ApiProperty({ description: 'Descripción del incidente', example: 'Accidente de tránsito en la avenida principal' })
   @IsString()
   @IsNotEmpty()
@@ -24,13 +30,11 @@ export class CreateAlertDto {
   @IsNotEmpty()
   userId: string;
 
-  // NUEVO: Validación de la dirección legible
   @ApiPropertyOptional({ description: 'Dirección aproximada (Reverse Geocoding)', example: 'Av. San Martín y 9 de Julio, Lules' })
   @IsString()
   @IsOptional()
   address?: string;
 
-  // NUEVO: Validación de la URL de la imagen
   @ApiPropertyOptional({ description: 'URL de la fotografía adjunta', example: 'https://storage.midominio.com/foto123.jpg' })
   @IsUrl({}, { message: 'El campo imageUrl debe ser un enlace web válido' })
   @IsOptional()
