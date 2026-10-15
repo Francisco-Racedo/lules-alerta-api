@@ -92,4 +92,12 @@ export class AlertsService {
 
     return await this.alertRepository.save(alert);
   }
+
+  // NUEVO MÉTODO: Búsqueda de reportes por ID de usuario
+  async findByUserId(userId: string): Promise<Alert[]> {
+    return await this.alertRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
 }

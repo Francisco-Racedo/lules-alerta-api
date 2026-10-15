@@ -1,6 +1,6 @@
 import { 
   Controller, Post, Body, Get, Query, BadRequestException, 
-  Patch, Param, UseInterceptors, UploadedFile 
+  Patch, Param, UseInterceptors, UploadedFile, ParseUUIDPipe 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -43,7 +43,6 @@ export class AlertsController {
     @Body() body: any, 
     @UploadedFile() file?: Express.Multer.File
   ) {
-    // CORRECCIÓN TYPESCRIPT: Usamos 'undefined' en lugar de 'null'
     const finalImageUrl = file ? `/uploads/alerts/${file.filename}` : undefined;
     
     const createAlertDto: CreateAlertDto = {
@@ -58,6 +57,28 @@ export class AlertsController {
 
     return await this.alertsService.create(createAlertDto);
   }
+
+  // --- 1. RUTAS ESPECÍFICAS PRIMERO ---
+
+  @Get('all')
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de registros (por defecto: 10)' })
+  async getAll(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const pageNumber = Math.max(1, parseInt(page, 10));
+    const limitNumber = Math.max(1, parseInt(limit, 10));
+    return await this.alertsService.findAllPaginated(pageNumber, limitNumber);
+  }
+
+  // NUEVO ENDPOINT: Historial del ciudadano (Colocado antes de las rutas genéricas)
+  @Get('user/:userId')
+  async getUserAlerts(@Param('userId', ParseUUIDPipe) userId: string) {
+    return await this.alertsService.findByUserId(userId);
+  }
+
+  // --- 2. RUTAS GENÉRICAS / DE PARÁMETROS DESPUÉS ---
 
   @Get()
   async getNearby(
@@ -82,17 +103,5 @@ export class AlertsController {
     @Body() updateAlertStatusDto: UpdateAlertStatusDto,
   ) {
     return await this.alertsService.updateStatus(id, updateAlertStatusDto.status);
-  }
-
-  @Get('all')
-  @ApiQuery({ name: 'page', required: false, description: 'Número de página (por defecto: 1)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Cantidad de registros (por defecto: 10)' })
-  async getAll(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const pageNumber = Math.max(1, parseInt(page, 10));
-    const limitNumber = Math.max(1, parseInt(limit, 10));
-    return await this.alertsService.findAllPaginated(pageNumber, limitNumber);
   }
 }
