@@ -9,6 +9,8 @@ import { UsersModule } from './users/users.module.js';
 import { AlertsModule } from './alerts/alerts.module.js';
 import { User } from './users/entities/user.entity.js';
 import { Alert } from './alerts/entities/alert.entity.js';
+import { NoticesModule } from './notices/notices.module.js';
+import { Notice } from './notices/entities/notice.entity.js';
 
 @Module({
   imports: [
@@ -28,7 +30,7 @@ import { Alert } from './alerts/entities/alert.entity.js';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [User, Alert],
+      entities: [User, Alert, Notice],
       synchronize: true, 
       logging: false,
     }),
@@ -39,6 +41,7 @@ import { Alert } from './alerts/entities/alert.entity.js';
     }),
     UsersModule,
     AlertsModule,
+    NoticesModule,
   ],
   controllers: [],
   providers: [
