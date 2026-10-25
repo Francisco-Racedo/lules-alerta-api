@@ -3,8 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { ServeStaticModule } from '@nestjs/serve-static'; // NUEVA IMPORTACIÓN
-import { join } from 'path'; // NUEVA IMPORTACIÓN
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { UsersModule } from './users/users.module.js';
 import { AlertsModule } from './alerts/alerts.module.js';
 import { User } from './users/entities/user.entity.js';
@@ -22,7 +22,7 @@ import { Notice } from './notices/entities/notice.entity.js';
       ttl: 60000, // Tiempo en milisegundos (60 segundos)
       limit: 10,  // Máximo 10 peticiones permitidas por IP en ese lapso
     }]),
-    // 2. Conexión a Base de Datos corregida para entorno local
+    // 2. Conexión a Base de Datos compatible con Local y Producción (DATABASE_URL)
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
@@ -33,8 +33,11 @@ import { Notice } from './notices/entities/notice.entity.js';
       entities: [User, Alert, Notice],
       synchronize: true, 
       logging: false,
+      ssl: process.env.DB_HOST && process.env.DB_HOST.includes('supabase') 
+        ? { rejectUnauthorized: false } 
+        : false, // Activa SSL solo si detecta que la base de datos es Supabase
     }),
-    // 3. NUEVO: Habilitar carpeta pública para las fotografías de perfil
+    // 3. Habilitar carpeta pública para las fotografías de perfil y alertas
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
