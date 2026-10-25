@@ -23,19 +23,19 @@ import { Notice } from './notices/entities/notice.entity.js';
       limit: 10,  // Máximo 10 peticiones permitidas por IP en ese lapso
     }]),
     // 2. Conexión a Base de Datos compatible con Local y Producción (DATABASE_URL)
+    // 2. Conexión a Base de Datos compatible con Local y Producción (DATABASE_URL)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      url: process.env.DATABASE_URL || undefined,
+      host: process.env.DATABASE_URL ? undefined : process.env.DB_HOST,
+      port: process.env.DATABASE_URL ? undefined : parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DATABASE_URL ? undefined : process.env.DB_USERNAME,
+      password: process.env.DATABASE_URL ? undefined : process.env.DB_PASSWORD,
+      database: process.env.DATABASE_URL ? undefined : process.env.DB_NAME,
       entities: [User, Alert, Notice],
       synchronize: true, 
       logging: false,
-      ssl: process.env.DB_HOST && process.env.DB_HOST.includes('supabase') 
-        ? { rejectUnauthorized: false } 
-        : false, // Activa SSL solo si detecta que la base de datos es Supabase
+      ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
     }),
     // 3. Habilitar carpeta pública para las fotografías de perfil y alertas
     ServeStaticModule.forRoot({
