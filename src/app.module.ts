@@ -30,6 +30,7 @@ import { Notice } from './notices/entities/notice.entity.js';
       password: process.env.DATABASE_URL ? undefined : process.env.DB_PASSWORD,
       database: process.env.DATABASE_URL ? undefined : process.env.DB_NAME,
       entities: [User, Alert, Notice],
+      autoLoadEntities: true,
       synchronize: true, 
       logging: false,
       extra: process.env.DATABASE_URL || (process.env.DB_HOST && process.env.DB_HOST.includes('supabase')) ? {

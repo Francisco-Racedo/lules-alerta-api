@@ -4,16 +4,18 @@ import {
   Column, 
   CreateDateColumn, 
   ManyToOne, 
-  JoinColumn 
+  JoinColumn,
+  OneToMany
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
+import { AlertHistory } from './alert-history.entity.js';
 
 @Entity('alertas') // Mapea con la tabla 'alertas' de PostgreSQL/PostGIS
 export class Alert {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // CORRECCIÓN CRÍTICA: Agregamos la categoría para saber el tipo de emergencia
   @Column({ type: 'varchar', length: 100 })
   category: string;
 
@@ -29,11 +31,6 @@ export class Alert {
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string;
 
-  /*
-   * COLUMNA GEOESPACIAL:
-   * Almacena las coordenadas. Recordatorio para el servicio: 
-   * PostGIS usa el formato [Longitud, Latitud].
-   */
   @Column({
     type: 'geometry',
     spatialFeatureType: 'Point',
@@ -50,7 +47,10 @@ export class Alert {
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: Relation<User>;
+
+  @OneToMany(() => AlertHistory, history => history.alert, { cascade: true })
+  history: Relation<AlertHistory>[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

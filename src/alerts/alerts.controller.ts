@@ -1,6 +1,6 @@
 import { 
   Controller, Post, Body, Get, Query, BadRequestException, 
-  Patch, Param, UseInterceptors, UploadedFile, ParseUUIDPipe 
+  Patch, Param, UseInterceptors, UploadedFile, ParseUUIDPipe, Delete 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -72,10 +72,16 @@ export class AlertsController {
     return await this.alertsService.findAllPaginated(pageNumber, limitNumber);
   }
 
-  // NUEVO ENDPOINT: Historial del ciudadano (Colocado antes de las rutas genéricas)
+  // MODIFICADO: Endpoint del historial con paginación
   @Get('user/:userId')
-  async getUserAlerts(@Param('userId', ParseUUIDPipe) userId: string) {
-    return await this.alertsService.findByUserId(userId);
+  async getUserAlerts(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const pageNumber = Math.max(1, parseInt(page, 10));
+    const limitNumber = Math.max(1, parseInt(limit, 10));
+    return await this.alertsService.findByUserId(userId, pageNumber, limitNumber);
   }
 
   // --- 2. RUTAS GENÉRICAS / DE PARÁMETROS DESPUÉS ---
@@ -97,11 +103,45 @@ export class AlertsController {
     return await this.alertsService.getNearbyAlerts(latitude, longitude, radiusInMeters);
   }
 
+  @Patch(':id/description')
+  async updateDescription(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('description') description: string,
+  ) {
+    if (!description) throw new BadRequestException('La nueva descripción es requerida.');
+    return await this.alertsService.updateDescription(id, description);
+  }
+
+  @Delete(':id')
+  async deleteAlert(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.alertsService.remove(id);
+  }
+
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
     @Body() updateAlertStatusDto: UpdateAlertStatusDto,
   ) {
     return await this.alertsService.updateStatus(id, updateAlertStatusDto.status);
+  }
+
+  @Patch(':id/image')
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/alerts',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = extname(file.originalname);
+        cb(null, `alert-${uniqueSuffix}${ext}`);
+      },
+    }),
+  }))
+  async updateImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    if (!file) throw new BadRequestException('No se adjuntó ninguna imagen nueva.');
+    const imageUrl = `/uploads/alerts/${file.filename}`;
+    return await this.alertsService.updateImage(id, imageUrl);
   }
 }
