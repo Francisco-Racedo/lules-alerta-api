@@ -12,6 +12,7 @@ import { Alert } from './alerts/entities/alert.entity.js';
 import { NoticesModule } from './notices/notices.module.js';
 import { Notice } from './notices/entities/notice.entity.js';
 
+
 @Module({
   imports: [
     ConfigModule.forRoot({

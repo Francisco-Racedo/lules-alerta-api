@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './entities/alert.entity.js';
 import { AlertHistory } from './entities/alert-history.entity.js';
+import { AlertResolution } from './entities/alert-resolution.entity.js';
 import { CreateAlertDto } from './dto/create-alert.dto.js';
 import { AlertsGateway } from './alerts.gateway.js';
 
@@ -13,6 +14,8 @@ export class AlertsService {
     private readonly alertRepository: Repository<Alert>,
     @InjectRepository(AlertHistory)
     private readonly historyRepository: Repository<AlertHistory>,
+    @InjectRepository(AlertResolution) // <-- NUEVO
+    private readonly resolutionRepository: Repository<AlertResolution>,
     private readonly alertsGateway: AlertsGateway,
   ) {}
 
@@ -63,7 +66,7 @@ export class AlertsService {
   }
 
   // MODIFICADO: Ahora guarda el historial de cambios de estado
-  async updateStatus(id: string, status: string, comment: string = 'Actualización por operador'): Promise<Alert> {
+  async updateStatus(id: string, status: string, comment?: string): Promise<Alert> {
     const alert = await this.alertRepository.findOne({ where: { id } });
     
     if (!alert) {
@@ -76,7 +79,7 @@ export class AlertsService {
         alert: alert,
         previousStatus: alert.status,
         newStatus: status,
-        comment: comment,
+        comment: comment || 'Actualización de estado por operador',
       });
       await this.historyRepository.save(historyEntry);
       
@@ -89,7 +92,7 @@ export class AlertsService {
 
   async findAllPaginated(page: number, limit: number) {
     const [data, total] = await this.alertRepository.findAndCount({
-      relations: { history: true }, // <-- CORRECCIÓN APLICADA AQUÍ
+      relations: { history: true, resolution: true }, // <-- CORRECCIÓN APLICADA AQUÍ
       order: { createdAt: 'DESC' },
       take: limit,
       skip: (page - 1) * limit,
@@ -116,10 +119,16 @@ export class AlertsService {
     return await this.alertRepository.save(alert);
   }
 
-  async findByUserId(userId: string, page: number = 1, limit: number = 10) {
+  async findByUserId(userId: string, page: number = 1, limit: number = 50, archived: string = 'false') {
+    // Conversión booleana estricta e inequívoca
+    const isArchivedBool = archived === 'true';
+    
     const [data, total] = await this.alertRepository.findAndCount({
-      where: { userId },
-      relations: { history: true }, // <-- CORRECCIÓN APLICADA AQUÍ
+      where: { 
+        userId, 
+        isArchived: isArchivedBool 
+      },
+      relations: { history: true, resolution: true },
       order: { createdAt: 'DESC' },
       take: limit,
       skip: (page - 1) * limit,
@@ -157,5 +166,41 @@ export class AlertsService {
 
     alert.description = newDescription;
     return await this.alertRepository.save(alert);
+  }
+
+  // Reemplaza el método resolveAlert actual por este:
+  async resolveAlert(id: string, description: string, imageUrl?: string, finalStatus: 'RESOLVED' | 'DISMISSED' = 'RESOLVED'): Promise<Alert> {
+    const alert = await this.alertRepository.findOne({ where: { id } });
+    if (!alert) throw new NotFoundException(`La alerta no existe.`);
+    if (alert.status === 'RESOLVED' || alert.status === 'DISMISSED') throw new BadRequestException('Esta alerta ya fue cerrada.');
+
+    const resolution = this.resolutionRepository.create({ alert, description, imageUrl });
+    await this.resolutionRepository.save(resolution);
+
+    const historyEntry = this.historyRepository.create({
+      alert,
+      previousStatus: alert.status,
+      newStatus: finalStatus,
+      comment: finalStatus === 'RESOLVED' ? 'Resolución oficial de la autoridad' : 'Reporte descartado por la autoridad', 
+    });
+    await this.historyRepository.save(historyEntry);
+
+    alert.status = finalStatus;
+    return await this.alertRepository.save(alert);
+  }
+
+  // Nuevo método para archivar
+  async archiveAlert(id: string): Promise<{ message: string }> {
+    const alert = await this.alertRepository.findOne({ where: { id } });
+    if (!alert) {
+      throw new NotFoundException('El reporte no existe.');
+    }
+    if (alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED') {
+      throw new BadRequestException('Solo puedes archivar reportes que ya estén resueltos o descartados.');
+    }
+
+    alert.isArchived = true;
+    await this.alertRepository.save(alert);
+    return { message: 'Reporte archivado correctamente' };
   }
 }

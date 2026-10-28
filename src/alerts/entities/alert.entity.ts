@@ -5,11 +5,13 @@ import {
   CreateDateColumn, 
   ManyToOne, 
   JoinColumn,
-  OneToMany
+  OneToMany,
+  OneToOne
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { User } from '../../users/entities/user.entity.js';
 import { AlertHistory } from './alert-history.entity.js';
+import { AlertResolution } from './alert-resolution.entity.js';
 
 @Entity('alertas') // Mapea con la tabla 'alertas' de PostgreSQL/PostGIS
 export class Alert {
@@ -45,12 +47,18 @@ export class Alert {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
+  @Column({ type: 'boolean', default: false, name: 'is_archived' })
+  isArchived: boolean;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: Relation<User>;
 
   @OneToMany(() => AlertHistory, history => history.alert, { cascade: true })
   history: Relation<AlertHistory>[];
+
+  @OneToOne('AlertResolution', 'alert', { cascade: true })
+  resolution: Relation<AlertResolution>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

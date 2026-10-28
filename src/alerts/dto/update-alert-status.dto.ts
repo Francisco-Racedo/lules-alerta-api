@@ -1,9 +1,14 @@
-import { IsString, IsNotEmpty, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateAlertStatusDto {
+  @ApiProperty({ example: 'IN_PROGRESS', description: 'Nuevo estado de la alerta' })
   @IsString()
   @IsNotEmpty()
-  // @IsIn garantiza que solo se acepten estos cuatro valores exactos
-  @IsIn(['PENDING', 'IN_PROGRESS', 'RESOLVED', 'DISMISSED'])
   status: string;
+
+  @ApiProperty({ example: 'Cuadrilla en camino', description: 'Comentario opcional para el historial', required: false })
+  @IsString()
+  @IsOptional()
+  comment?: string;
 }
