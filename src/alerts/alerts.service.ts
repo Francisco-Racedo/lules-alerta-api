@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './entities/alert.entity.js';
@@ -14,13 +18,28 @@ export class AlertsService {
     private readonly alertRepository: Repository<Alert>,
     @InjectRepository(AlertHistory)
     private readonly historyRepository: Repository<AlertHistory>,
-    @InjectRepository(AlertResolution) // <-- NUEVO
+    @InjectRepository(AlertResolution)
     private readonly resolutionRepository: Repository<AlertResolution>,
     private readonly alertsGateway: AlertsGateway,
   ) {}
 
   async create(createAlertDto: CreateAlertDto): Promise<Alert> {
-    const { category, description, latitude, longitude, userId, address, imageUrl } = createAlertDto;
+    const {
+      category,
+      description,
+      latitude,
+      longitude,
+      userId,
+      address,
+      imageUrl,
+      images,
+    } = createAlertDto;
+
+    const finalImages = images?.length
+      ? images
+      : imageUrl
+        ? [imageUrl]
+        : [];
 
     const newAlert = this.alertRepository.create({
       category,
@@ -28,6 +47,7 @@ export class AlertsService {
       userId,
       address,
       imageUrl,
+      images: finalImages,
       location: {
         type: 'Point',
         coordinates: [longitude, latitude],
@@ -35,55 +55,66 @@ export class AlertsService {
     });
 
     const savedAlert = await this.alertRepository.save(newAlert);
-    
-    // NUEVO: Registrar el evento de creación inicial en el historial
+
     const historyEntry = this.historyRepository.create({
       alert: savedAlert,
       newStatus: 'PENDING',
       comment: 'Reporte emitido por el ciudadano',
     });
+
     await this.historyRepository.save(historyEntry);
 
-    // Emitimos la alerta recién guardada a todos los conectados
     this.alertsGateway.emitNewAlert(savedAlert);
 
     return savedAlert;
   }
 
-  async getNearbyAlerts(lat: number, lng: number, radius: number): Promise<Alert[]> {
+  async getNearbyAlerts(
+    lat: number,
+    lng: number,
+    radius: number,
+  ): Promise<Alert[]> {
     return await this.alertRepository
       .createQueryBuilder('alert')
-      .where("alert.status = :status", { status: 'PENDING' })
+      .where('alert.status = :status', { status: 'PENDING' })
       .andWhere(
         `ST_DWithin(
           alert.location::geography,
           ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
           :radius
-        )`
+        )`,
       )
       .setParameters({ lng, lat, radius })
       .getMany();
   }
 
-  // MODIFICADO: Ahora guarda el historial de cambios de estado
-  async updateStatus(id: string, status: string, comment?: string): Promise<Alert> {
-    const alert = await this.alertRepository.findOne({ where: { id } });
-    
+  async updateStatus(
+    id: string,
+    status: string,
+    comment?: string,
+  ): Promise<Alert> {
+    const alert = await this.alertRepository.findOne({
+      where: { id },
+    });
+
     if (!alert) {
-      throw new NotFoundException(`La alerta con el ID especificado no existe.`);
+      throw new NotFoundException(
+        'La alerta con el ID especificado no existe.',
+      );
     }
 
-    // Solo creamos registro si el estado es diferente al actual
     if (alert.status !== status) {
       const historyEntry = this.historyRepository.create({
-        alert: alert,
+        alert,
         previousStatus: alert.status,
         newStatus: status,
         comment: comment || 'Actualización de estado por operador',
       });
+
       await this.historyRepository.save(historyEntry);
-      
+
       alert.status = status;
+
       return await this.alertRepository.save(alert);
     }
 
@@ -92,8 +123,13 @@ export class AlertsService {
 
   async findAllPaginated(page: number, limit: number) {
     const [data, total] = await this.alertRepository.findAndCount({
-      relations: { history: true, resolution: true }, // <-- CORRECCIÓN APLICADA AQUÍ
-      order: { createdAt: 'DESC' },
+      relations: {
+        history: true,
+        resolution: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
       take: limit,
       skip: (page - 1) * limit,
     });
@@ -107,29 +143,90 @@ export class AlertsService {
   }
 
   async updateImage(id: string, imageUrl: string): Promise<Alert> {
-    const alert = await this.alertRepository.preload({
-      id: id,
-      imageUrl: imageUrl,
+    const alert = await this.alertRepository.findOne({
+      where: { id },
     });
 
     if (!alert) {
-      throw new NotFoundException(`La alerta con el ID especificado no existe.`);
+      throw new NotFoundException(
+        'La alerta con el ID especificado no existe.',
+      );
     }
+
+    alert.imageUrl = imageUrl;
+    alert.images = [imageUrl];
 
     return await this.alertRepository.save(alert);
   }
 
-  async findByUserId(userId: string, page: number = 1, limit: number = 50, archived: string = 'false') {
-    // Conversión booleana estricta e inequívoca
+  async updateImageAtIndex(
+  id: string,
+  imageIndex: number,
+  imageUrl: string,
+): Promise<Alert> {
+  const alert = await this.alertRepository.findOne({
+    where: { id },
+  });
+
+  if (!alert) {
+    throw new NotFoundException(
+      'La alerta con el ID especificado no existe.',
+    );
+  }
+
+  if (alert.status !== 'PENDING') {
+    throw new BadRequestException(
+      'Solo puedes cambiar imágenes de reportes pendientes.',
+    );
+  }
+
+  const currentImages = alert.images?.length
+    ? [...alert.images]
+    : alert.imageUrl
+      ? [alert.imageUrl]
+      : [];
+
+  if (
+    !Number.isInteger(imageIndex) ||
+    imageIndex < 0 ||
+    imageIndex >= currentImages.length
+  ) {
+    throw new BadRequestException(
+      'El índice de la imagen no es válido.',
+    );
+  }
+
+  currentImages[imageIndex] = imageUrl;
+
+  alert.images = currentImages;
+
+  if (imageIndex === 0) {
+    alert.imageUrl = imageUrl;
+  }
+
+  return await this.alertRepository.save(alert);
+}
+
+  async findByUserId(
+    userId: string,
+    page: number = 1,
+    limit: number = 50,
+    archived: string = 'false',
+  ) {
     const isArchivedBool = archived === 'true';
-    
+
     const [data, total] = await this.alertRepository.findAndCount({
-      where: { 
-        userId, 
-        isArchived: isArchivedBool 
+      where: {
+        userId,
+        isArchived: isArchivedBool,
       },
-      relations: { history: true, resolution: true },
-      order: { createdAt: 'DESC' },
+      relations: {
+        history: true,
+        resolution: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
       take: limit,
       skip: (page - 1) * limit,
     });
@@ -143,64 +240,121 @@ export class AlertsService {
   }
 
   async remove(id: string): Promise<{ message: string }> {
-    const alert = await this.alertRepository.findOne({ where: { id } });
+    const alert = await this.alertRepository.findOne({
+      where: { id },
+    });
+
     if (!alert) {
       throw new NotFoundException('La alerta no existe.');
     }
+
     if (alert.status !== 'PENDING') {
-      throw new BadRequestException('No puedes cancelar una alerta que ya está en curso o resuelta.');
+      throw new BadRequestException(
+        'No puedes cancelar una alerta que ya está en curso o resuelta.',
+      );
     }
-    
+
     await this.alertRepository.remove(alert);
-    return { message: 'Alerta cancelada y eliminada correctamente' };
+
+    return {
+      message: 'Alerta cancelada y eliminada correctamente',
+    };
   }
 
-  async updateDescription(id: string, newDescription: string): Promise<Alert> {
-    const alert = await this.alertRepository.findOne({ where: { id } });
+  async updateDescription(
+    id: string,
+    newDescription: string,
+  ): Promise<Alert> {
+    const alert = await this.alertRepository.findOne({
+      where: { id },
+    });
+
     if (!alert) {
       throw new NotFoundException('La alerta no existe.');
     }
+
     if (alert.status !== 'PENDING') {
-      throw new BadRequestException('No puedes modificar una alerta que ya está en curso o resuelta.');
+      throw new BadRequestException(
+        'No puedes modificar una alerta que ya está en curso o resuelta.',
+      );
     }
 
     alert.description = newDescription;
+
     return await this.alertRepository.save(alert);
   }
 
-  // Reemplaza el método resolveAlert actual por este:
-  async resolveAlert(id: string, description: string, imageUrl?: string, finalStatus: 'RESOLVED' | 'DISMISSED' = 'RESOLVED'): Promise<Alert> {
-    const alert = await this.alertRepository.findOne({ where: { id } });
-    if (!alert) throw new NotFoundException(`La alerta no existe.`);
-    if (alert.status === 'RESOLVED' || alert.status === 'DISMISSED') throw new BadRequestException('Esta alerta ya fue cerrada.');
+  async resolveAlert(
+    id: string,
+    description: string,
+    imageUrls: string[] = [],
+    finalStatus: 'RESOLVED' | 'DISMISSED' = 'RESOLVED',
+  ): Promise<Alert> {
+    const alert = await this.alertRepository.findOne({
+      where: { id },
+    });
 
-    const resolution = this.resolutionRepository.create({ alert, description, imageUrl });
+    if (!alert) {
+      throw new NotFoundException('La alerta no existe.');
+    }
+
+    if (
+      alert.status === 'RESOLVED' ||
+      alert.status === 'DISMISSED'
+    ) {
+      throw new BadRequestException('Esta alerta ya fue cerrada.');
+    }
+
+    const resolution = this.resolutionRepository.create({
+      alert,
+      description,
+      imageUrl: imageUrls[0],
+      images: imageUrls,
+    });
+
     await this.resolutionRepository.save(resolution);
 
     const historyEntry = this.historyRepository.create({
       alert,
       previousStatus: alert.status,
       newStatus: finalStatus,
-      comment: finalStatus === 'RESOLVED' ? 'Resolución oficial de la autoridad' : 'Reporte descartado por la autoridad', 
+      comment:
+        finalStatus === 'RESOLVED'
+          ? 'Resolución oficial de la autoridad'
+          : 'Reporte descartado por la autoridad',
     });
+
     await this.historyRepository.save(historyEntry);
 
     alert.status = finalStatus;
+
     return await this.alertRepository.save(alert);
   }
 
-  // Nuevo método para archivar
   async archiveAlert(id: string): Promise<{ message: string }> {
-    const alert = await this.alertRepository.findOne({ where: { id } });
+    const alert = await this.alertRepository.findOne({
+      where: { id },
+    });
+
     if (!alert) {
       throw new NotFoundException('El reporte no existe.');
     }
-    if (alert.status !== 'RESOLVED' && alert.status !== 'DISMISSED') {
-      throw new BadRequestException('Solo puedes archivar reportes que ya estén resueltos o descartados.');
+
+    if (
+      alert.status !== 'RESOLVED' &&
+      alert.status !== 'DISMISSED'
+    ) {
+      throw new BadRequestException(
+        'Solo puedes archivar reportes que ya estén resueltos o descartados.',
+      );
     }
 
     alert.isArchived = true;
+
     await this.alertRepository.save(alert);
-    return { message: 'Reporte archivado correctamente' };
+
+    return {
+      message: 'Reporte archivado correctamente',
+    };
   }
 }

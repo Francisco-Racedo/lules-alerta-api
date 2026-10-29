@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Alert } from './alert.entity.js';
 import type { Relation } from 'typeorm';
 
@@ -7,7 +14,6 @@ export class AlertResolution {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // El JoinColumn va de este lado porque la resolución depende de que exista una alerta
   @OneToOne('Alert', 'resolution', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'alert_id' })
   alert: Relation<Alert>;
@@ -17,6 +23,14 @@ export class AlertResolution {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   imageUrl: string;
+
+  @Column({
+    type: 'text',
+    array: true,
+    nullable: true,
+    name: 'images',
+  })
+  images: string[];
 
   @CreateDateColumn({ name: 'resolved_at' })
   resolvedAt: Date;

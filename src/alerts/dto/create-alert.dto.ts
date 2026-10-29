@@ -1,8 +1,7 @@
-import { IsString, IsNotEmpty, IsNumber, IsUUID, Min, Max, IsOptional, IsUrl } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsUUID, Min, Max, IsOptional, IsUrl, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAlertDto {
-  // NUEVO: Validación de la categoría obligatoria
   @ApiProperty({ description: 'Categoría del incidente', example: 'Robo / Sospecha' })
   @IsString()
   @IsNotEmpty({ message: 'La categoría del incidente es obligatoria' })
@@ -35,8 +34,16 @@ export class CreateAlertDto {
   @IsOptional()
   address?: string;
 
+  // Se mantiene por compatibilidad hacia atrás
   @ApiPropertyOptional({ description: 'URL de la fotografía adjunta', example: 'https://storage.midominio.com/foto123.jpg' })
-  @IsUrl({}, { message: 'El campo imageUrl debe ser un enlace web válido' })
+  @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  // NUEVO: Arreglo de rutas de las fotografías
+  @ApiPropertyOptional({ description: 'Arreglo de URLs de las fotografías adjuntas', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  images?: string[];
 }

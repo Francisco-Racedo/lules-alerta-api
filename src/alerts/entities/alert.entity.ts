@@ -30,8 +30,13 @@ export class Alert {
   @Column({ type: 'varchar', nullable: true })
   address: string;
 
+  // Columna original: Se mantiene por retrocompatibilidad con reportes antiguos
   @Column({ type: 'varchar', nullable: true, name: 'image_url' })
   imageUrl: string;
+
+  // NUEVA COLUMNA: Arreglo nativo de PostgreSQL para soportar el carrusel
+  @Column({ type: 'text', array: true, nullable: true, name: 'images' })
+  images: string[];
 
   @Column({
     type: 'geometry',
