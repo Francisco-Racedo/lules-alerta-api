@@ -1,14 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 import { User } from './entities/user.entity.js';
+import { JwtStrategy } from './jwt.strategy.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { PasswordResetCode } from './entities/password-reset-code.entity.js';
+import { PasswordResetMailerService } from './password-reset-mailer.service.js';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, PasswordResetCode]),
+    PassportModule,
     // Inyectamos el módulo JWT configurándolo con tu llave secreta
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -20,7 +26,12 @@ import { User } from './entities/user.entity.js';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [TypeOrmModule],
+  providers: [
+    UsersService,
+    JwtStrategy,
+    JwtAuthGuard,
+    PasswordResetMailerService,
+  ],
+  exports: [TypeOrmModule, JwtAuthGuard],
 })
 export class UsersModule {}

@@ -13,6 +13,8 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   Delete,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   FileInterceptor,
@@ -29,6 +31,8 @@ import {
   ApiConsumes,
   ApiQuery,
 } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../users/jwt-auth.guard.js';
+import type { AuthenticatedRequest } from '../users/auth.types.js';
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
@@ -129,6 +133,25 @@ export class AlertsController {
     return await this.alertsService.findAllPaginated(
       pageNumber,
       limitNumber,
+    );
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentUserAlerts(
+    @Req() request: AuthenticatedRequest,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('archived') archived: string = 'false',
+  ) {
+    const pageNumber = Math.max(1, parseInt(page, 10));
+    const limitNumber = Math.max(1, parseInt(limit, 10));
+
+    return await this.alertsService.findByUserId(
+      request.user.id,
+      pageNumber,
+      limitNumber,
+      archived,
     );
   }
 

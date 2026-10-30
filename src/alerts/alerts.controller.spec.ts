@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 
 import { AlertsController } from './alerts.controller.js';
 import { AlertsService } from './alerts.service.js';
+import type { AuthenticatedRequest } from '../users/auth.types.js';
 
 describe('AlertsController', () => {
   let controller: AlertsController;
@@ -152,6 +153,38 @@ describe('AlertsController', () => {
   });
 
   describe('getUserAlerts', () => {
+    it('usa la identidad autenticada para consultar los reportes propios', async () => {
+      const request = {
+        user: {
+          id: 'authenticated-user-id',
+          dni: '35123456',
+        },
+      };
+      const expectedResponse = {
+        data: [],
+        total: 0,
+        currentPage: 1,
+        lastPage: 0,
+      };
+
+      alertsService.findByUserId.mockResolvedValue(expectedResponse);
+
+      const result = await controller.getCurrentUserAlerts(
+        request as AuthenticatedRequest,
+        '1',
+        '50',
+        'false',
+      );
+
+      expect(alertsService.findByUserId).toHaveBeenCalledWith(
+        'authenticated-user-id',
+        1,
+        50,
+        'false',
+      );
+      expect(result).toBe(expectedResponse);
+    });
+
     it('delega userId, paginación y archived en el servicio', async () => {
       const expectedResponse = {
         data: [],

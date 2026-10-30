@@ -1,19 +1,27 @@
 import { Injectable, ConflictException, InternalServerErrorException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from './entities/user.entity.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginUserDto } from './dto/login-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto.js';
+import { ConfirmPasswordResetDto } from './dto/confirm-password-reset.dto.js';
+import { PasswordResetCode } from './entities/password-reset-code.entity.js';
+import { PasswordResetMailerService } from './password-reset-mailer.service.js';
+import { randomInt, createHash } from 'node:crypto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PasswordResetCode)
+    private readonly passwordResetRepository: Repository<PasswordResetCode>,
     private readonly jwtService: JwtService, // Herramienta para emitir Tokens
+    private readonly passwordResetMailer: PasswordResetMailerService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -61,12 +69,114 @@ export class UsersService {
     // Devolvemos el token y los datos del ciudadano (sin devolver la contraseña)
     return {
       access_token: token,
-      user: {
-        id: user.id,
-        nombre: user.nombre,
-        dni: user.dni,
-        telefono: user.telefono
-      }
+      user: await this.findPublicById(user.id),
+    };
+  }
+
+  async findPublicById(id: string) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException('El usuario de la sesión no existe.');
+    }
+
+    return {
+      id: user.id,
+      nombre: user.nombre,
+      dni: user.dni,
+      telefono: user.telefono,
+      fotoPerfil: user.fotoPerfil,
+      email: user.email,
+      direccion: user.direccion,
+      barrio: user.barrio,
+      contactoEmergenciaNombre: user.contactoEmergenciaNombre,
+      contactoEmergenciaTelefono: user.contactoEmergenciaTelefono,
+      datosMedicos: user.datosMedicos,
+    };
+  }
+
+  async requestPasswordReset(
+    request: RequestPasswordResetDto,
+  ): Promise<{ message: string }> {
+    const genericResponse = {
+      message:
+        'Si los datos son válidos, recibirás un código en tu correo registrado.',
+    };
+    const user = await this.userRepository.findOne({
+      where: { dni: request.dni },
+    });
+
+    if (!user || !user.email) {
+      return genericResponse;
+    }
+
+    await this.passwordResetRepository.update(
+      { userId: user.id, usedAt: IsNull() },
+      { usedAt: new Date() },
+    );
+
+    const code = randomInt(100000, 1000000).toString();
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    const resetCode = this.passwordResetRepository.create({
+      userId: user.id,
+      codeHash,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      attempts: 0,
+      usedAt: null,
+    });
+
+    await this.passwordResetRepository.save(resetCode);
+    await this.passwordResetMailer.sendPasswordResetCode(user.email, code);
+
+    return genericResponse;
+  }
+
+  async confirmPasswordReset(
+    request: ConfirmPasswordResetDto,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({
+      where: { dni: request.dni },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('El código de recuperación no es válido.');
+    }
+
+    const resetCode = await this.passwordResetRepository.findOne({
+      where: {
+        userId: user.id,
+        usedAt: IsNull(),
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (
+      !resetCode ||
+      resetCode.expiresAt.getTime() <= Date.now() ||
+      resetCode.attempts >= 5
+    ) {
+      throw new UnauthorizedException('El código de recuperación no es válido.');
+    }
+
+    const codeHash = createHash('sha256')
+      .update(request.code)
+      .digest('hex');
+
+    if (codeHash !== resetCode.codeHash) {
+      resetCode.attempts += 1;
+      await this.passwordResetRepository.save(resetCode);
+      throw new UnauthorizedException('El código de recuperación no es válido.');
+    }
+
+    user.password = await bcrypt.hash(request.newPassword, 10);
+    resetCode.usedAt = new Date();
+    await this.userRepository.save(user);
+    await this.passwordResetRepository.save(resetCode);
+
+    return {
+      message: 'La contraseña se actualizó correctamente.',
     };
   }
 

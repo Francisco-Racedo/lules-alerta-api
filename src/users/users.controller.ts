@@ -1,6 +1,6 @@
 import { 
   Controller, Post, Body, Patch, Param, ParseUUIDPipe, 
-  UseInterceptors, UploadedFile, BadRequestException 
+  UseInterceptors, UploadedFile, BadRequestException, Get, UseGuards, Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -10,6 +10,10 @@ import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { LoginUserDto } from './dto/login-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto.js';
+import { ConfirmPasswordResetDto } from './dto/confirm-password-reset.dto.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+import type { AuthenticatedRequest } from './auth.types.js';
 
 @Controller('users')
 export class UsersController {
@@ -23,6 +27,30 @@ export class UsersController {
   @Post('login')
   async login(@Body() loginUserDto: LoginUserDto) {
     return await this.usersService.login(loginUserDto);
+  }
+
+  @Post('password-recovery/request')
+  async requestPasswordReset(
+    @Body() requestPasswordResetDto: RequestPasswordResetDto,
+  ) {
+    return await this.usersService.requestPasswordReset(
+      requestPasswordResetDto,
+    );
+  }
+
+  @Post('password-recovery/confirm')
+  async confirmPasswordReset(
+    @Body() confirmPasswordResetDto: ConfirmPasswordResetDto,
+  ) {
+    return await this.usersService.confirmPasswordReset(
+      confirmPasswordResetDto,
+    );
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentUser(@Req() request: AuthenticatedRequest) {
+    return await this.usersService.findPublicById(request.user.id);
   }
 
   @Patch(':id')
