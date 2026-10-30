@@ -39,6 +39,7 @@
     "class-validator": "^0.15.1",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
+    "googleapis": "^144.0.0",
     "nodemailer": "^10.3.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

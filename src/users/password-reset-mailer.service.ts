@@ -1,29 +1,22 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import nodemailer from 'nodemailer';
-import type { Transporter } from 'nodemailer';
+import { google } from 'googleapis';
 
 @Injectable()
 export class PasswordResetMailerService {
-  private readonly transporter: Transporter;
-  private readonly from: string;
+  private readonly gmail;
+  private readonly sender: string;
 
   constructor(configService: ConfigService) {
-    const user = configService.getOrThrow<string>('SMTP_USER');
-    const password = configService.getOrThrow<string>('SMTP_PASSWORD');
-    const host = configService.get<string>('SMTP_HOST') ?? 'smtp.gmail.com';
-    const port = configService.get<number>('SMTP_PORT') ?? 465;
-    const secure = configService.get<string>('SMTP_SECURE') !== 'false';
-    const fromName =
-      configService.get<string>('SMTP_FROM_NAME') ?? 'Lules Alerta';
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass: password },
+    const auth = new google.auth.OAuth2(
+      configService.getOrThrow<string>('GMAIL_CLIENT_ID'),
+      configService.getOrThrow<string>('GMAIL_CLIENT_SECRET'),
+    );
+    auth.setCredentials({
+      refresh_token: configService.getOrThrow<string>('GMAIL_REFRESH_TOKEN'),
     });
-    this.from = `"${fromName}" <${user}>`;
+    this.gmail = google.gmail({ version: 'v1', auth });
+    this.sender = configService.getOrThrow<string>('GMAIL_SENDER');
   }
 
   async sendPasswordResetCode(
@@ -31,11 +24,13 @@ export class PasswordResetMailerService {
     code: string,
   ): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        from: this.from,
-        to: recipient,
-        subject: 'Código para recuperar tu contraseña',
-        text: [
+      const message = [
+        `From: ${this.sender}`,
+        `To: ${recipient}`,
+        'Subject: Código para recuperar tu contraseña',
+        'Content-Type: text/plain; charset="UTF-8"',
+        '',
+        [
           'Recibimos una solicitud para recuperar tu contraseña de Lules Alerta.',
           '',
           `Tu código es: ${code}`,
@@ -43,6 +38,17 @@ export class PasswordResetMailerService {
           '',
           'Si no solicitaste este cambio, puedes ignorar este mensaje.',
         ].join('\n'),
+      ].join('\r\n');
+
+      await this.gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: Buffer.from(message, 'utf8')
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, ''),
+        },
       });
     } catch {
       throw new InternalServerErrorException(
