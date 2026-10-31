@@ -24,6 +24,7 @@ import { NoticesService } from './notices.service.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
 import { UpdateNoticeDto } from './dto/update-notice.dto.js';
 import { JwtAuthGuard } from '../users/jwt-auth.guard.js';
+import { AdminGuard } from '../users/admin.guard.js';
 import type { AuthenticatedRequest } from '../users/auth.types.js';
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
@@ -64,11 +65,13 @@ export class NoticesController {
   constructor(private readonly noticesService: NoticesService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async create(@Body() createNoticeDto: CreateNoticeDto) {
     return await this.noticesService.create(createNoticeDto);
   }
 
   @Patch(':id/archive')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async archive(@Param('id') id: string) {
     return await this.noticesService.archive(id);
   }
@@ -89,6 +92,7 @@ export class NoticesController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async update(
     @Param('id') id: string,
     @Body() updateNoticeDto: UpdateNoticeDto,
@@ -97,6 +101,7 @@ export class NoticesController {
   }
 
   @Patch(':id/images')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -137,6 +142,7 @@ export class NoticesController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async remove(@Param('id') id: string) {
     return await this.noticesService.remove(id);
   }

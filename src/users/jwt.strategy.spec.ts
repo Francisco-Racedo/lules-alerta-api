@@ -40,6 +40,7 @@ describe('JwtStrategy', () => {
     userRepository.findOne.mockResolvedValue({
       id: 'user-id',
       dni: '35123456',
+      role: 'USER',
     });
 
     await expect(
@@ -47,11 +48,12 @@ describe('JwtStrategy', () => {
     ).resolves.toEqual({
       id: 'user-id',
       dni: '35123456',
+      role: 'USER',
     });
 
     expect(userRepository.findOne).toHaveBeenCalledWith({
       where: { id: 'user-id' },
-      select: { id: true, dni: true },
+      select: { id: true, dni: true, role: true },
     });
   });
 

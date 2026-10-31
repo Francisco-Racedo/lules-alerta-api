@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { PasswordResetCode } from './entities/password-reset-code.entity.js';
 import { PasswordResetMailerService } from './password-reset-mailer.service.js';
+import { AdminGuard } from './admin.guard.js';
 
 @Module({
   imports: [
@@ -30,8 +31,9 @@ import { PasswordResetMailerService } from './password-reset-mailer.service.js';
     UsersService,
     JwtStrategy,
     JwtAuthGuard,
+    AdminGuard,
     PasswordResetMailerService,
   ],
-  exports: [TypeOrmModule, JwtAuthGuard],
+  exports: [TypeOrmModule, JwtAuthGuard, AdminGuard],
 })
 export class UsersModule {}

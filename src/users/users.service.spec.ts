@@ -50,6 +50,7 @@ describe('UsersService', () => {
       telefono: '3811234567',
       password: 'hashed-password',
       fotoPerfil: '/uploads/avatars/user.jpg',
+      role: 'USER',
       ...overrides,
     });
 

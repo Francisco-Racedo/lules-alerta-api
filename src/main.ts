@@ -29,6 +29,7 @@ async function bootstrap() {
     .setTitle('Lules-Alerta API')
     .setDescription('API geoespacial para el sistema de alertas de emergencias en Lules.')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
     
   const document = SwaggerModule.createDocument(app, config);

@@ -29,6 +29,9 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   fotoPerfil: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'USER' })
+  role: 'USER' | 'ADMIN';
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   contactoEmergenciaNombre: string;
 
