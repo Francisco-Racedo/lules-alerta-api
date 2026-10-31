@@ -121,6 +121,11 @@ export class NoticesService implements OnModuleInit {
       longitude: number;
       source: 'nominatim' | 'photon';
     }> = [];
+    const queryVariants = [
+      query,
+      query.replace(/\bAv\.\s*/gi, 'Avenida '),
+      query.replace(/\s+\d+\s*$/, ''),
+    ].filter((value, index, values) => values.indexOf(value) === index);
     const seen = new Set<string>();
     const addResult = (
       label: string,
@@ -136,65 +141,69 @@ export class NoticesService implements OnModuleInit {
     };
 
     try {
-      const fullQuery = `${query}, San Isidro de Lules, Tucumán, Argentina`;
-      const nominatimUrl =
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ar&limit=10&q=${encodeURIComponent(fullQuery)}`;
-      const response = await fetch(nominatimUrl, {
-        headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
-      });
+      for (const variant of queryVariants) {
+        const fullQuery = `${variant}, Lules, Tucumán, Argentina`;
+        const nominatimUrl =
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ar&limit=10&q=${encodeURIComponent(fullQuery)}`;
+        const response = await fetch(nominatimUrl, {
+          headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
+        });
 
-      if (response.ok) {
-        const data: Array<{ lat: string; lon: string; display_name?: string }> =
-          await response.json();
-        for (const item of data) {
-          if (!item.display_name?.toLowerCase().includes('lules')) continue;
-          addResult(
-            item.display_name,
-            parseFloat(item.lat),
-            parseFloat(item.lon),
-            'nominatim',
-          );
+        if (response.ok) {
+          const data: Array<{ lat: string; lon: string; display_name?: string }> =
+            await response.json();
+          for (const item of data) {
+            if (!item.display_name?.toLowerCase().includes('lules')) continue;
+            addResult(
+              item.display_name,
+              parseFloat(item.lat),
+              parseFloat(item.lon),
+              'nominatim',
+            );
+          }
         }
       }
 
-      const photonUrl =
-        `https://photon.komoot.io/api/?limit=10&q=${encodeURIComponent(fullQuery)}`;
-      const photonResponse = await fetch(photonUrl, {
-        headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
-      });
+      for (const variant of queryVariants) {
+        const fullQuery = `${variant}, Lules, Tucumán, Argentina`;
+        const photonUrl =
+          `https://photon.komoot.io/api/?limit=10&q=${encodeURIComponent(fullQuery)}`;
+        const photonResponse = await fetch(photonUrl, {
+          headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
+        });
 
-      if (photonResponse.ok) {
-        const photonData: {
-          features?: Array<{
-            geometry?: { coordinates?: [number, number] };
-            properties?: {
-              city?: string;
-              district?: string;
-              state?: string;
-              name?: string;
-              street?: string;
-            };
-          }>;
-        } = await photonResponse.json();
+        if (photonResponse.ok) {
+          const photonData: {
+            features?: Array<{
+              geometry?: { coordinates?: [number, number] };
+              properties?: {
+                city?: string;
+                district?: string;
+                name?: string;
+                street?: string;
+              };
+            }>;
+          } = await photonResponse.json();
 
-        for (const feature of photonData.features ?? []) {
-          const properties = feature.properties;
-          const locality = `${properties?.city ?? ''} ${properties?.district ?? ''}`
-            .toLowerCase();
-          const coordinates = feature.geometry?.coordinates;
-          if (!locality.includes('lules') || !coordinates) continue;
+          for (const feature of photonData.features ?? []) {
+            const properties = feature.properties;
+            const locality = `${properties?.city ?? ''} ${properties?.district ?? ''}`
+              .toLowerCase();
+            const coordinates = feature.geometry?.coordinates;
+            if (!locality.includes('lules') || !coordinates) continue;
 
-          addResult(
-            [
-              properties?.street ?? properties?.name ?? query,
-              properties?.city ?? 'San Isidro de Lules',
-              properties?.state ?? 'Tucumán',
-              'Argentina',
-            ].join(', '),
-            coordinates[1],
-            coordinates[0],
-            'photon',
-          );
+            addResult(
+              [
+                properties?.street ?? properties?.name ?? query,
+                properties?.city ?? 'San Isidro de Lules',
+                'Tucumán',
+                'Argentina',
+              ].join(', '),
+              coordinates[1],
+              coordinates[0],
+              'photon',
+            );
+          }
         }
       }
 
@@ -209,7 +218,17 @@ export class NoticesService implements OnModuleInit {
     let { latitude, longitude, address, barrio } = createNoticeDto;
 
     if (address && (latitude === undefined || longitude === undefined)) {
-      const coords = await this.geocodeAddressInLules(address);
+      let coords = await this.geocodeAddressInLules(address);
+      if (!coords && !/\s+y\s+/i.test(address)) {
+        const [candidate] = await this.searchGeocoding(address);
+        if (candidate) {
+          coords = {
+            lat: candidate.latitude,
+            lng: candidate.longitude,
+            displayName: candidate.label,
+          };
+        }
+      }
       if (coords) {
         latitude = coords.lat;
         longitude = coords.lng;
