@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
 
@@ -12,6 +13,7 @@ export class NoticesController {
   }
 
   @Get()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   async findAll(
     @Query('barrio') barrio?: string,
     @Query('sourceType') sourceType?: string,
