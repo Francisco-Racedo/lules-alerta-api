@@ -437,6 +437,22 @@ export class NoticesService implements OnModuleInit {
     return await this.noticeRepository.save(notice);
   }
 
+  async updateImage(id: string, imageUrl: string): Promise<Notice> {
+    const notice = await this.noticeRepository.findOne({ where: { id } });
+    if (!notice) {
+      throw new NotFoundException('El aviso no existe.');
+    }
+
+    if (notice.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'No se puede editar un aviso archivado.',
+      );
+    }
+
+    notice.imageUrl = imageUrl;
+    return await this.noticeRepository.save(notice);
+  }
+
   async remove(id: string): Promise<void> {
     const result = await this.noticeRepository.delete(id);
     if (!result.affected) {
