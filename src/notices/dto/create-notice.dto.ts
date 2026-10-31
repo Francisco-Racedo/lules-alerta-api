@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsIn, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -61,4 +61,13 @@ export class CreateNoticeDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-11-15T23:59:00.000Z',
+    description: 'Fecha y hora en que el aviso dejará de mostrarse',
+  })
+  @IsDate()
+  @IsOptional()
+  @Type(() => Date)
+  expiresAt?: Date;
 }

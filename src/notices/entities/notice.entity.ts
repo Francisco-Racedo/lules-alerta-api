@@ -45,6 +45,12 @@ export class Notice {
   @Column({ type: 'varchar', nullable: true })
   imageUrl: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
+  status: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  expiresAt: Date;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -1,4 +1,14 @@
-import { BadRequestException, Controller, Get, Post, Body, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
@@ -11,6 +21,16 @@ export class NoticesController {
   @Post()
   async create(@Body() createNoticeDto: CreateNoticeDto) {
     return await this.noticesService.create(createNoticeDto);
+  }
+
+  @Patch(':id/archive')
+  async archive(@Param('id') id: string) {
+    return await this.noticesService.archive(id);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return await this.noticesService.remove(id);
   }
 
   @Get('geocode')

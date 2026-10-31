@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notice } from './entities/notice.entity.js';
@@ -217,6 +222,15 @@ export class NoticesService implements OnModuleInit {
   async create(createNoticeDto: CreateNoticeDto): Promise<Notice> {
     let { latitude, longitude, address, barrio } = createNoticeDto;
 
+    if (
+      createNoticeDto.expiresAt &&
+      createNoticeDto.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException(
+        'La fecha de vencimiento debe estar en el futuro.',
+      );
+    }
+
     if (address && (latitude === undefined || longitude === undefined)) {
       let coords = await this.geocodeAddressInLules(address);
       if (!coords && !/\s+y\s+/i.test(address)) {
@@ -264,6 +278,7 @@ export class NoticesService implements OnModuleInit {
       address,
       latitude,
       longitude,
+      status: 'ACTIVE',
     });
 
     return await this.noticeRepository.save(newNotice);
@@ -271,6 +286,12 @@ export class NoticesService implements OnModuleInit {
 
   async findAll(barrio?: string, sourceType?: string): Promise<Notice[]> {
     const query = this.noticeRepository.createQueryBuilder('notice');
+    const now = new Date();
+
+    query.where(
+      'notice.status = :status AND (notice.expiresAt IS NULL OR notice.expiresAt > :now)',
+      { status: 'ACTIVE', now },
+    );
 
     // Si filtra por un barrio específico (que no sea "Todo Lules"), muestra los de ese barrio + los avisos generales de "Todo Lules"
     if (barrio && barrio !== 'Todo Lules') {
@@ -293,6 +314,23 @@ export class NoticesService implements OnModuleInit {
       );
 
     return await query.getMany();
+  }
+
+  async archive(id: string): Promise<Notice> {
+    const notice = await this.noticeRepository.findOne({ where: { id } });
+    if (!notice) {
+      throw new NotFoundException('El aviso no existe.');
+    }
+
+    notice.status = 'ARCHIVED';
+    return await this.noticeRepository.save(notice);
+  }
+
+  async remove(id: string): Promise<void> {
+    const result = await this.noticeRepository.delete(id);
+    if (!result.affected) {
+      throw new NotFoundException('El aviso no existe.');
+    }
   }
 
   private async seedInitialNotices() {
