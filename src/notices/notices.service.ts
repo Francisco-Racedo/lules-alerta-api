@@ -52,7 +52,49 @@ export class NoticesService implements OnModuleInit {
           displayName: result.display_name ?? addressText,
         };
       }
-      return null;
+
+      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(fullQuery)}&limit=5`;
+      const photonResponse = await fetch(photonUrl, {
+        headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
+      });
+
+      if (!photonResponse.ok) return null;
+
+      const photonData: {
+        features?: Array<{
+          geometry?: { coordinates?: [number, number] };
+          properties?: {
+            city?: string;
+            district?: string;
+            state?: string;
+            name?: string;
+            street?: string;
+          };
+        }>;
+      } = await photonResponse.json();
+
+      const result = photonData.features?.find((feature) => {
+        const properties = feature.properties;
+        const locality = `${properties?.city ?? ''} ${properties?.district ?? ''}`
+          .toLowerCase();
+        return locality.includes('lules');
+      });
+      const coordinates = result?.geometry?.coordinates;
+
+      if (!coordinates || coordinates.length < 2) return null;
+
+      const [lng, lat] = coordinates;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+      const properties = result.properties;
+      const displayName = [
+        properties?.street ?? properties?.name ?? addressText,
+        properties?.city ?? 'San Isidro de Lules',
+        properties?.state ?? 'Tucumán',
+        'Argentina',
+      ].join(', ');
+
+      return { lat, lng, displayName };
     } catch (error) {
       console.warn('No se pudo geocodificar la dirección automáticamente:', error);
       return null;
@@ -96,6 +138,7 @@ export class NoticesService implements OnModuleInit {
     const newNotice = this.noticeRepository.create({
       ...createNoticeDto,
       barrio: barrio ? barrio.trim() : 'Todo Lules',
+      address,
       latitude,
       longitude,
     });
