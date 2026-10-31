@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
@@ -10,6 +11,21 @@ export class NoticesController {
   @Post()
   async create(@Body() createNoticeDto: CreateNoticeDto) {
     return await this.noticesService.create(createNoticeDto);
+  }
+
+  @Get('geocode')
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    description: 'Calle, dirección o intersección para buscar en Lules',
+    example: 'San Martín y 9 de Julio',
+  })
+  async geocode(@Query('q') query?: string) {
+    if (!query?.trim()) {
+      throw new BadRequestException('El parámetro q es obligatorio.');
+    }
+
+    return await this.noticesService.searchGeocoding(query);
   }
 
   @Get()

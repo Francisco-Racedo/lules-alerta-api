@@ -104,10 +104,111 @@ export class NoticesService implements OnModuleInit {
     }
   }
 
+  async searchGeocoding(addressText: string): Promise<Array<{
+    label: string;
+    latitude: number;
+    longitude: number;
+    source: 'nominatim' | 'photon';
+  }>> {
+    const query = addressText.trim();
+    if (!query) {
+      return [];
+    }
+
+    const results: Array<{
+      label: string;
+      latitude: number;
+      longitude: number;
+      source: 'nominatim' | 'photon';
+    }> = [];
+    const seen = new Set<string>();
+    const addResult = (
+      label: string,
+      latitude: number,
+      longitude: number,
+      source: 'nominatim' | 'photon',
+    ) => {
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+      const key = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      results.push({ label, latitude, longitude, source });
+    };
+
+    try {
+      const fullQuery = `${query}, San Isidro de Lules, Tucumán, Argentina`;
+      const nominatimUrl =
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=ar&limit=10&q=${encodeURIComponent(fullQuery)}`;
+      const response = await fetch(nominatimUrl, {
+        headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
+      });
+
+      if (response.ok) {
+        const data: Array<{ lat: string; lon: string; display_name?: string }> =
+          await response.json();
+        for (const item of data) {
+          if (!item.display_name?.toLowerCase().includes('lules')) continue;
+          addResult(
+            item.display_name,
+            parseFloat(item.lat),
+            parseFloat(item.lon),
+            'nominatim',
+          );
+        }
+      }
+
+      const photonUrl =
+        `https://photon.komoot.io/api/?limit=10&q=${encodeURIComponent(fullQuery)}`;
+      const photonResponse = await fetch(photonUrl, {
+        headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
+      });
+
+      if (photonResponse.ok) {
+        const photonData: {
+          features?: Array<{
+            geometry?: { coordinates?: [number, number] };
+            properties?: {
+              city?: string;
+              district?: string;
+              state?: string;
+              name?: string;
+              street?: string;
+            };
+          }>;
+        } = await photonResponse.json();
+
+        for (const feature of photonData.features ?? []) {
+          const properties = feature.properties;
+          const locality = `${properties?.city ?? ''} ${properties?.district ?? ''}`
+            .toLowerCase();
+          const coordinates = feature.geometry?.coordinates;
+          if (!locality.includes('lules') || !coordinates) continue;
+
+          addResult(
+            [
+              properties?.street ?? properties?.name ?? query,
+              properties?.city ?? 'San Isidro de Lules',
+              properties?.state ?? 'Tucumán',
+              'Argentina',
+            ].join(', '),
+            coordinates[1],
+            coordinates[0],
+            'photon',
+          );
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.warn('No se pudo buscar la ubicación del aviso:', error);
+      return [];
+    }
+  }
+
   async create(createNoticeDto: CreateNoticeDto): Promise<Notice> {
     let { latitude, longitude, address, barrio } = createNoticeDto;
 
-    if (address) {
+    if (address && (latitude === undefined || longitude === undefined)) {
       const coords = await this.geocodeAddressInLules(address);
       if (coords) {
         latitude = coords.lat;
