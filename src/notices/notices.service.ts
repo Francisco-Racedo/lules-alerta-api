@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notice } from './entities/notice.entity.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
+import { UpdateNoticeDto } from './dto/update-notice.dto.js';
 
 @Injectable()
 export class NoticesService implements OnModuleInit {
@@ -314,6 +315,106 @@ export class NoticesService implements OnModuleInit {
       );
 
     return await query.getMany();
+  }
+
+  async update(id: string, updateNoticeDto: UpdateNoticeDto): Promise<Notice> {
+    const notice = await this.noticeRepository.findOne({ where: { id } });
+    if (!notice) {
+      throw new NotFoundException('El aviso no existe.');
+    }
+
+    if (notice.status !== 'ACTIVE') {
+      throw new BadRequestException(
+        'No se puede editar un aviso archivado.',
+      );
+    }
+
+    if (
+      updateNoticeDto.expiresAt &&
+      updateNoticeDto.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException(
+        'La fecha de vencimiento debe estar en el futuro.',
+      );
+    }
+
+    const hasAddressChange = updateNoticeDto.address !== undefined;
+    const hasExplicitCoordinates =
+      updateNoticeDto.latitude !== undefined ||
+      updateNoticeDto.longitude !== undefined;
+
+    let coordinates = {
+      latitude: updateNoticeDto.latitude ?? notice.latitude,
+      longitude: updateNoticeDto.longitude ?? notice.longitude,
+    };
+    let address = updateNoticeDto.address ?? notice.address;
+
+    if (hasAddressChange && !hasExplicitCoordinates && updateNoticeDto.address) {
+      const resolved = await this.geocodeAddressInLules(
+        updateNoticeDto.address,
+      );
+      if (!resolved && !/\s+y\s+/i.test(updateNoticeDto.address)) {
+        const [candidate] = await this.searchGeocoding(updateNoticeDto.address);
+        if (candidate) {
+          coordinates = {
+            latitude: candidate.latitude,
+            longitude: candidate.longitude,
+          };
+          address = candidate.label;
+        }
+      } else if (resolved) {
+        coordinates = {
+          latitude: resolved.lat,
+          longitude: resolved.lng,
+        };
+        address = resolved.displayName;
+      } else if (/\s+y\s+/i.test(updateNoticeDto.address)) {
+        throw new BadRequestException(
+          'No se pudo localizar la intersección. Confirme sus coordenadas antes de actualizar el aviso.',
+        );
+      }
+
+      if (
+        (coordinates.latitude === undefined ||
+          coordinates.longitude === undefined) &&
+        !/\s+y\s+/i.test(updateNoticeDto.address)
+      ) {
+        throw new BadRequestException(
+          'No se pudo localizar la dirección del aviso en San Isidro de Lules.',
+        );
+      }
+    }
+
+    const hasPartialCoordinates =
+      (coordinates.latitude === undefined) !==
+      (coordinates.longitude === undefined);
+    const hasInvalidCoordinates =
+      coordinates.latitude !== undefined &&
+      coordinates.longitude !== undefined &&
+      (!Number.isFinite(coordinates.latitude) ||
+        !Number.isFinite(coordinates.longitude) ||
+        coordinates.latitude < -90 ||
+        coordinates.latitude > 90 ||
+        coordinates.longitude < -180 ||
+        coordinates.longitude > 180);
+
+    if (hasPartialCoordinates || hasInvalidCoordinates) {
+      throw new BadRequestException(
+        'La ubicación del aviso debe tener latitud y longitud válidas.',
+      );
+    }
+
+    Object.assign(notice, updateNoticeDto, {
+      address,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    });
+
+    if (updateNoticeDto.barrio !== undefined) {
+      notice.barrio = updateNoticeDto.barrio.trim();
+    }
+
+    return await this.noticeRepository.save(notice);
   }
 
   async archive(id: string): Promise<Notice> {

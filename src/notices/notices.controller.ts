@@ -13,6 +13,7 @@ import { ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
+import { UpdateNoticeDto } from './dto/update-notice.dto.js';
 
 @Controller('notices')
 export class NoticesController {
@@ -26,6 +27,14 @@ export class NoticesController {
   @Patch(':id/archive')
   async archive(@Param('id') id: string) {
     return await this.noticesService.archive(id);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() updateNoticeDto: UpdateNoticeDto,
+  ) {
+    return await this.noticesService.update(id, updateNoticeDto);
   }
 
   @Delete(':id')
