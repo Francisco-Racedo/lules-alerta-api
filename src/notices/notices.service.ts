@@ -9,12 +9,15 @@ import { Repository } from 'typeorm';
 import { Notice } from './entities/notice.entity.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
 import { UpdateNoticeDto } from './dto/update-notice.dto.js';
+import { NoticeRead } from './entities/notice-read.entity.js';
 
 @Injectable()
 export class NoticesService implements OnModuleInit {
   constructor(
     @InjectRepository(Notice)
     private readonly noticeRepository: Repository<Notice>,
+    @InjectRepository(NoticeRead)
+    private readonly noticeReadRepository: Repository<NoticeRead>,
   ) {}
 
   // Se ejecuta automáticamente al encender el servidor: si la tabla está vacía, crea avisos de prueba para Lules
@@ -315,6 +318,36 @@ export class NoticesService implements OnModuleInit {
       );
 
     return await query.getMany();
+  }
+
+  async getReadNoticeIds(userId: string): Promise<string[]> {
+    const reads = await this.noticeReadRepository.find({
+      where: { userId },
+      select: { noticeId: true },
+    });
+
+    return reads.map((read) => read.noticeId);
+  }
+
+  async markAsRead(
+    noticeId: string,
+    userId: string,
+  ): Promise<{ noticeId: string; read: true }> {
+    const notice = await this.noticeRepository.findOne({ where: { id: noticeId } });
+    if (!notice) {
+      throw new NotFoundException('El aviso no existe.');
+    }
+
+    const existingRead = await this.noticeReadRepository.findOne({
+      where: { noticeId, userId },
+    });
+    if (!existingRead) {
+      await this.noticeReadRepository.save(
+        this.noticeReadRepository.create({ noticeId, userId }),
+      );
+    }
+
+    return { noticeId, read: true };
   }
 
   async update(id: string, updateNoticeDto: UpdateNoticeDto): Promise<Notice> {

@@ -8,8 +8,10 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UploadedFiles,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -21,6 +23,8 @@ import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
 import { CreateNoticeDto } from './dto/create-notice.dto.js';
 import { UpdateNoticeDto } from './dto/update-notice.dto.js';
+import { JwtAuthGuard } from '../users/jwt-auth.guard.js';
+import type { AuthenticatedRequest } from '../users/auth.types.js';
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const UPLOAD_PATH = './uploads/notices';
@@ -67,6 +71,21 @@ export class NoticesController {
   @Patch(':id/archive')
   async archive(@Param('id') id: string) {
     return await this.noticesService.archive(id);
+  }
+
+  @Get('read')
+  @UseGuards(JwtAuthGuard)
+  async getReadNoticeIds(@Req() request: AuthenticatedRequest) {
+    return await this.noticesService.getReadNoticeIds(request.user.id);
+  }
+
+  @Post(':id/read')
+  @UseGuards(JwtAuthGuard)
+  async markAsRead(
+    @Param('id') id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return await this.noticesService.markAsRead(id, request.user.id);
   }
 
   @Patch(':id')

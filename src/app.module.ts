@@ -12,6 +12,7 @@ import { PasswordResetCode } from './users/entities/password-reset-code.entity.j
 import { Alert } from './alerts/entities/alert.entity.js';
 import { NoticesModule } from './notices/notices.module.js';
 import { Notice } from './notices/entities/notice.entity.js';
+import { NoticeRead } from './notices/entities/notice-read.entity.js';
 
 
 @Module({
@@ -31,7 +32,7 @@ import { Notice } from './notices/entities/notice.entity.js';
       username: process.env.DATABASE_URL ? undefined : process.env.DB_USERNAME,
       password: process.env.DATABASE_URL ? undefined : process.env.DB_PASSWORD,
       database: process.env.DATABASE_URL ? undefined : process.env.DB_NAME,
-      entities: [User, PasswordResetCode, Alert, Notice],
+      entities: [User, PasswordResetCode, Alert, Notice, NoticeRead],
       autoLoadEntities: true,
       synchronize: true, 
       logging: false,
