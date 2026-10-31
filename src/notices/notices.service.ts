@@ -449,8 +449,22 @@ export class NoticesService implements OnModuleInit {
       );
     }
 
-    notice.images = imageUrls;
-    notice.imageUrl = imageUrls[0];
+    const currentImages =
+      notice.images && notice.images.length > 0
+        ? notice.images
+        : notice.imageUrl
+          ? [notice.imageUrl]
+          : [];
+    const mergedImages = [...new Set([...currentImages, ...imageUrls])];
+
+    if (mergedImages.length > 5) {
+      throw new BadRequestException(
+        'Un aviso puede tener como máximo cinco imágenes.',
+      );
+    }
+
+    notice.images = mergedImages;
+    notice.imageUrl = mergedImages[0] ?? null;
     return await this.noticeRepository.save(notice);
   }
 

@@ -90,7 +90,7 @@ export class NoticesController {
             type: 'string',
             format: 'binary',
           },
-          description: 'Hasta 5 imágenes JPG, JPEG, PNG o WEBP de hasta 8 MB cada una.',
+          description: 'Imágenes nuevas que se agregarán a la galería. Hasta 5 en total, JPG, JPEG, PNG o WEBP de hasta 8 MB cada una.',
         },
       },
       required: ['files'],
