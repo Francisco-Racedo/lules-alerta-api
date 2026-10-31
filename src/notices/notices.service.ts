@@ -437,7 +437,7 @@ export class NoticesService implements OnModuleInit {
     return await this.noticeRepository.save(notice);
   }
 
-  async updateImage(id: string, imageUrl: string): Promise<Notice> {
+  async updateImages(id: string, imageUrls: string[]): Promise<Notice> {
     const notice = await this.noticeRepository.findOne({ where: { id } });
     if (!notice) {
       throw new NotFoundException('El aviso no existe.');
@@ -449,7 +449,8 @@ export class NoticesService implements OnModuleInit {
       );
     }
 
-    notice.imageUrl = imageUrl;
+    notice.images = imageUrls;
+    notice.imageUrl = imageUrls[0];
     return await this.noticeRepository.save(notice);
   }
 

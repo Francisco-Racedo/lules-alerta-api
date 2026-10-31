@@ -8,10 +8,10 @@ import {
   Body,
   Param,
   Query,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
@@ -77,39 +77,43 @@ export class NoticesController {
     return await this.noticesService.update(id, updateNoticeDto);
   }
 
-  @Patch(':id/image')
+  @Patch(':id/images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'Imagen JPG, JPEG, PNG o WEBP de hasta 8 MB.',
+        files: {
+          type: 'array',
+          maxItems: 5,
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Hasta 5 imágenes JPG, JPEG, PNG o WEBP de hasta 8 MB cada una.',
         },
       },
-      required: ['file'],
+      required: ['files'],
     },
   })
   @UseInterceptors(
-    FileInterceptor('file', {
+    FilesInterceptor('files', 5, {
       storage: noticeImageStorage,
       fileFilter: imageFileFilter,
       limits: { fileSize: MAX_IMAGE_SIZE },
     }),
   )
-  async updateImage(
+  async updateImages(
     @Param('id') id: string,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files?: Array<Express.Multer.File>,
   ) {
-    if (!file) {
+    if (!files || files.length === 0) {
       throw new BadRequestException('No se adjuntó ninguna imagen.');
     }
 
-    return await this.noticesService.updateImage(
+    return await this.noticesService.updateImages(
       id,
-      `/uploads/notices/${file.filename}`,
+      files.map((file) => `/uploads/notices/${file.filename}`),
     );
   }
 

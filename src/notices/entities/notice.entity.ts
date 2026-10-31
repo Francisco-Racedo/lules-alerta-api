@@ -45,6 +45,9 @@ export class Notice {
   @Column({ type: 'varchar', nullable: true })
   imageUrl: string;
 
+  @Column({ type: 'jsonb', nullable: true })
+  images: string[];
+
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
   status: string;
 
