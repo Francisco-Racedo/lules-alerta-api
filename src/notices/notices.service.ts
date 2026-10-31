@@ -339,13 +339,21 @@ export class NoticesService implements OnModuleInit {
     }
 
     const hasAddressChange = updateNoticeDto.address !== undefined;
+    const hasLocationChange =
+      hasAddressChange ||
+      updateNoticeDto.latitude !== undefined ||
+      updateNoticeDto.longitude !== undefined;
     const hasExplicitCoordinates =
       updateNoticeDto.latitude !== undefined ||
       updateNoticeDto.longitude !== undefined;
 
     let coordinates = {
-      latitude: updateNoticeDto.latitude ?? notice.latitude,
-      longitude: updateNoticeDto.longitude ?? notice.longitude,
+      latitude:
+        updateNoticeDto.latitude ??
+        (notice.latitude === null ? undefined : notice.latitude),
+      longitude:
+        updateNoticeDto.longitude ??
+        (notice.longitude === null ? undefined : notice.longitude),
     };
     let address = updateNoticeDto.address ?? notice.address;
 
@@ -386,9 +394,11 @@ export class NoticesService implements OnModuleInit {
     }
 
     const hasPartialCoordinates =
+      hasLocationChange &&
       (coordinates.latitude === undefined) !==
-      (coordinates.longitude === undefined);
+        (coordinates.longitude === undefined);
     const hasInvalidCoordinates =
+      hasLocationChange &&
       coordinates.latitude !== undefined &&
       coordinates.longitude !== undefined &&
       (!Number.isFinite(coordinates.latitude) ||
