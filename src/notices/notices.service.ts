@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notice } from './entities/notice.entity.js';
@@ -20,22 +20,36 @@ export class NoticesService implements OnModuleInit {
   }
 
   // MOTOR DE GEOCODIFICACIÓN INVISIBLE: Convierte nombres de calles de Lules en coordenadas [Lat, Lng]
-  private async geocodeAddressInLules(addressText: string): Promise<{ lat: number; lng: number } | null> {
+  private async geocodeAddressInLules(
+    addressText: string,
+  ): Promise<{ lat: number; lng: number; displayName: string } | null> {
     try {
       const fullQuery = `${addressText}, San Isidro de Lules, Tucumán, Argentina`;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&limit=1`;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&countrycodes=ar&limit=5`;
 
       const response = await fetch(url, {
         headers: { 'User-Agent': 'LulesAlertaApp/1.0' },
       });
 
       if (!response.ok) return null;
-      const data: any = await response.json();
+      const data: Array<{ lat: string; lon: string; display_name?: string }> =
+        await response.json();
 
       if (Array.isArray(data) && data.length > 0) {
+        const result = data.find((item) =>
+          item.display_name?.toLowerCase().includes('lules'),
+        ) ?? data[0];
+        const lat = parseFloat(result.lat);
+        const lng = parseFloat(result.lon);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return null;
+        }
+
         return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
+          lat,
+          lng,
+          displayName: result.display_name ?? addressText,
         };
       }
       return null;
@@ -48,13 +62,35 @@ export class NoticesService implements OnModuleInit {
   async create(createNoticeDto: CreateNoticeDto): Promise<Notice> {
     let { latitude, longitude, address, barrio } = createNoticeDto;
 
-    // Si el usuario/operador ingresó el nombre de la calle pero NO hay coordenadas, las calculamos internamente
-    if (address && (latitude === undefined || longitude === undefined)) {
+    if (address) {
       const coords = await this.geocodeAddressInLules(address);
       if (coords) {
         latitude = coords.lat;
         longitude = coords.lng;
+        address = coords.displayName;
+      } else if (latitude === undefined || longitude === undefined) {
+        throw new BadRequestException(
+          'No se pudo localizar la dirección del aviso en San Isidro de Lules.',
+        );
       }
+    }
+
+    const hasPartialCoordinates =
+      (latitude === undefined) !== (longitude === undefined);
+    const hasInvalidCoordinates =
+      latitude !== undefined &&
+      longitude !== undefined &&
+      (!Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180);
+
+    if (hasPartialCoordinates || hasInvalidCoordinates) {
+      throw new BadRequestException(
+        'La ubicación del aviso debe tener latitud y longitud válidas.',
+      );
     }
 
     const newNotice = this.noticeRepository.create({
