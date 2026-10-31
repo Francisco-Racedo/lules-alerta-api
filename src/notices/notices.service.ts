@@ -24,6 +24,7 @@ export class NoticesService implements OnModuleInit {
     addressText: string,
   ): Promise<{ lat: number; lng: number; displayName: string } | null> {
     try {
+      const isIntersection = /\s+y\s+/i.test(addressText);
       const fullQuery = `${addressText}, San Isidro de Lules, Tucumán, Argentina`;
       const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullQuery)}&countrycodes=ar&limit=5`;
 
@@ -35,7 +36,7 @@ export class NoticesService implements OnModuleInit {
       const data: Array<{ lat: string; lon: string; display_name?: string }> =
         await response.json();
 
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data) && data.length > 0 && !isIntersection) {
         const result = data.find((item) =>
           item.display_name?.toLowerCase().includes('lules'),
         ) ?? data[0];
@@ -69,6 +70,7 @@ export class NoticesService implements OnModuleInit {
             state?: string;
             name?: string;
             street?: string;
+            type?: string;
           };
         }>;
       } = await photonResponse.json();
@@ -77,11 +79,12 @@ export class NoticesService implements OnModuleInit {
         const properties = feature.properties;
         const locality = `${properties?.city ?? ''} ${properties?.district ?? ''}`
           .toLowerCase();
-        return locality.includes('lules');
+        return locality.includes('lules') &&
+          (!isIntersection || properties?.type === 'street');
       });
       const coordinates = result?.geometry?.coordinates;
 
-      if (!coordinates || coordinates.length < 2) return null;
+      if (!coordinates || coordinates.length < 2 || isIntersection) return null;
 
       const [lng, lat] = coordinates;
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -163,8 +166,11 @@ export class NoticesService implements OnModuleInit {
 
     // Ordenamos: Primero los CRITICAL, luego por fecha más reciente
     query
-      .orderBy("CASE WHEN notice.severity = 'CRITICAL' THEN 1 WHEN notice.severity = 'WARNING' THEN 2 ELSE 3 END", 'ASC')
-      .addOrderBy('notice.createdAt', 'DESC');
+      .orderBy('notice.createdAt', 'DESC')
+      .addOrderBy(
+        "CASE WHEN notice.severity = 'CRITICAL' THEN 1 WHEN notice.severity = 'WARNING' THEN 2 ELSE 3 END",
+        'ASC',
+      );
 
     return await query.getMany();
   }
