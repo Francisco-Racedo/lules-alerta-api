@@ -17,7 +17,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { NoticesService } from './notices.service.js';
@@ -66,12 +66,14 @@ export class NoticesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   async create(@Body() createNoticeDto: CreateNoticeDto) {
     return await this.noticesService.create(createNoticeDto);
   }
 
   @Patch(':id/archive')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   async archive(@Param('id') id: string) {
     return await this.noticesService.archive(id);
   }
@@ -93,6 +95,7 @@ export class NoticesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   async update(
     @Param('id') id: string,
     @Body() updateNoticeDto: UpdateNoticeDto,
@@ -102,6 +105,7 @@ export class NoticesController {
 
   @Patch(':id/images')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -143,6 +147,7 @@ export class NoticesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   async remove(@Param('id') id: string) {
     return await this.noticesService.remove(id);
   }
