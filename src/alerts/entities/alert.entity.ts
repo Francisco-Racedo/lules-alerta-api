@@ -55,6 +55,9 @@ export class Alert {
   @Column({ type: 'boolean', default: false, name: 'is_archived' })
   isArchived: boolean;
 
+  @Column({ type: 'timestamptz', nullable: true, name: 'archived_at' })
+  archivedAt: Date | null;
+
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: Relation<User>;

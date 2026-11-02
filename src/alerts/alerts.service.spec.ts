@@ -423,6 +423,7 @@ describe('AlertsService', () => {
       const result = await service.archiveAlert('alert-id');
 
       expect(alert.isArchived).toBe(true);
+      expect(alert.archivedAt).toBeInstanceOf(Date);
       expect(alertRepository.save).toHaveBeenCalledWith(alert);
       expect(result).toEqual({
         message: 'Reporte archivado correctamente',

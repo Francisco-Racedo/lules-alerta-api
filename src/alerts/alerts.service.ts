@@ -350,6 +350,7 @@ export class AlertsService {
     }
 
     alert.isArchived = true;
+    alert.archivedAt = new Date();
 
     await this.alertRepository.save(alert);
 
