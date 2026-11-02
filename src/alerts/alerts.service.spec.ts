@@ -35,6 +35,7 @@ describe('AlertsService', () => {
 
   const alertsGateway = {
     emitNewAlert: vi.fn(),
+    emitAlertChanged: vi.fn(),
   };
 
   const createAlert = (overrides: Partial<Alert> = {}): Alert =>

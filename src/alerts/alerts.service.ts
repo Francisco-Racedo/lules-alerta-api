@@ -115,7 +115,13 @@ export class AlertsService {
 
       alert.status = status;
 
-      return await this.alertRepository.save(alert);
+      const updatedAlert = await this.alertRepository.save(alert);
+      this.alertsGateway.emitAlertChanged(
+        alert.userId,
+        alert.id,
+        'status_changed',
+      );
+      return updatedAlert;
     }
 
     return alert;
@@ -328,7 +334,13 @@ export class AlertsService {
 
     alert.status = finalStatus;
 
-    return await this.alertRepository.save(alert);
+    const updatedAlert = await this.alertRepository.save(alert);
+    this.alertsGateway.emitAlertChanged(
+      alert.userId,
+      alert.id,
+      finalStatus === 'RESOLVED' ? 'resolved' : 'dismissed',
+    );
+    return updatedAlert;
   }
 
   async archiveAlert(id: string): Promise<{ message: string }> {
@@ -353,6 +365,11 @@ export class AlertsService {
     alert.archivedAt = new Date();
 
     await this.alertRepository.save(alert);
+    this.alertsGateway.emitAlertChanged(
+      alert.userId,
+      alert.id,
+      'archived',
+    );
 
     return {
       message: 'Reporte archivado correctamente',

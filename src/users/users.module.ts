@@ -34,6 +34,6 @@ import { AdminGuard } from './admin.guard.js';
     AdminGuard,
     PasswordResetMailerService,
   ],
-  exports: [TypeOrmModule, JwtAuthGuard, AdminGuard],
+  exports: [TypeOrmModule, JwtModule, JwtAuthGuard, AdminGuard],
 })
 export class UsersModule {}
