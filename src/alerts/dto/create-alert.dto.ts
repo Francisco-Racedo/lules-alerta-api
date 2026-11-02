@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsUUID, Min, Max, IsOptional, IsUrl, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsUUID, Min, Max, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAlertDto {

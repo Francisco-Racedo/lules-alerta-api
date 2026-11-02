@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { vi } from 'vitest';
-import { Repository } from 'typeorm';
 
 import { AlertsService } from './alerts.service.js';
 import { AlertsGateway } from './alerts.gateway.js';
