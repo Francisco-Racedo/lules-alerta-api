@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -36,6 +37,7 @@ describe('AlertsService', () => {
   const alertsGateway = {
     emitNewAlert: vi.fn(),
     emitAlertChanged: vi.fn(),
+    emitMonitoringAlertChanged: vi.fn(),
   };
 
   const createAlert = (overrides: Partial<Alert> = {}): Alert =>
@@ -355,7 +357,37 @@ describe('AlertsService', () => {
 
       expect(alert.description).toBe('Descripción actualizada');
       expect(alertRepository.save).toHaveBeenCalledWith(alert);
+      expect(alertsGateway.emitMonitoringAlertChanged).not.toHaveBeenCalled();
       expect(result).toBe(alert);
+    });
+
+    it('notifica al centro cuando el usuario edita su reporte', async () => {
+      const alert = createAlert();
+      alertRepository.findOne.mockResolvedValue(alert);
+      alertRepository.save.mockResolvedValue(alert);
+
+      await service.updateDescription(
+        'alert-id',
+        'Descripción actualizada',
+        'user-id',
+      );
+
+      expect(alertsGateway.emitMonitoringAlertChanged).toHaveBeenCalledWith(
+        'alert-id',
+        'description_updated',
+        'user-id',
+      );
+    });
+
+    it('rechaza editar un reporte de otro usuario', async () => {
+      const alert = createAlert({ userId: 'owner-id' });
+      alertRepository.findOne.mockResolvedValue(alert);
+
+      await expect(
+        service.updateDescription('alert-id', 'Nueva descripción', 'other-id'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(alertRepository.save).not.toHaveBeenCalled();
     });
 
     it('rechaza editar un reporte cerrado', async () => {
@@ -390,6 +422,20 @@ describe('AlertsService', () => {
       expect(result).toEqual({
         message: 'Alerta cancelada y eliminada correctamente',
       });
+    });
+
+    it('notifica al centro cuando el usuario elimina su reporte', async () => {
+      const alert = createAlert();
+      alertRepository.findOne.mockResolvedValue(alert);
+      alertRepository.remove.mockResolvedValue(alert);
+
+      await service.remove('alert-id', 'user-id');
+
+      expect(alertsGateway.emitMonitoringAlertChanged).toHaveBeenCalledWith(
+        'alert-id',
+        'deleted',
+        'user-id',
+      );
     });
 
     it('rechaza eliminar un reporte que ya no está pendiente', async () => {

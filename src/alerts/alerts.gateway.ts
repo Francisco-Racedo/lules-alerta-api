@@ -10,10 +10,21 @@ import { UnauthorizedException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 
 export type AlertChangeAction =
+  | 'created'
   | 'status_changed'
   | 'resolved'
   | 'dismissed'
-  | 'archived';
+  | 'archived'
+  | 'description_updated'
+  | 'images_updated'
+  | 'deleted';
+
+interface WebSocketJwtPayload {
+  sub?: unknown;
+  role?: unknown;
+}
+
+const ADMIN_ROOM = 'monitoring:alerts';
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,7 +39,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     try {
       const token = this.getToken(client);
-      const payload = await this.jwtService.verifyAsync<{ sub?: unknown }>(
+      const payload = await this.jwtService.verifyAsync<WebSocketJwtPayload>(
         token,
         { secret: this.configService.getOrThrow<string>('JWT_SECRET') },
       );
@@ -38,6 +49,9 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       await client.join(this.getUserRoom(payload.sub));
+      if (payload.role === 'ADMIN') {
+        await client.join(ADMIN_ROOM);
+      }
       client.data.userId = payload.sub;
     } catch {
       client.disconnect(true);
@@ -49,7 +63,19 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   emitNewAlert(alert: object) {
-    this.server.emit('nueva-alerta', alert);
+    this.server.to(ADMIN_ROOM).emit('alert.created', alert);
+  }
+
+  emitMonitoringAlertChanged(
+    alertId: string,
+    action: AlertChangeAction,
+    userId: string,
+  ) {
+    this.server.to(ADMIN_ROOM).emit('alert.changed', {
+      alertId,
+      action,
+      userId,
+    });
   }
 
   emitAlertChanged(

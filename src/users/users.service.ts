@@ -63,7 +63,7 @@ export class UsersService {
     }
 
     // 3. ¡Identidad confirmada! Generamos el Token JWT ("Pase VIP")
-    const payload = { sub: user.id, dni: user.dni };
+    const payload = { sub: user.id, dni: user.dni, role: user.role };
     const token = this.jwtService.sign(payload);
 
     // Devolvemos el token y los datos del ciudadano (sin devolver la contraseña)

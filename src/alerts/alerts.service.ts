@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -148,7 +149,11 @@ export class AlertsService {
     };
   }
 
-  async updateImage(id: string, imageUrl: string): Promise<Alert> {
+  async updateImage(
+    id: string,
+    imageUrl: string,
+    ownerUserId?: string,
+  ): Promise<Alert> {
     const alert = await this.alertRepository.findOne({
       where: { id },
     });
@@ -159,16 +164,26 @@ export class AlertsService {
       );
     }
 
+    this.ensureOwner(alert, ownerUserId);
     alert.imageUrl = imageUrl;
     alert.images = [imageUrl];
 
-    return await this.alertRepository.save(alert);
+    const updatedAlert = await this.alertRepository.save(alert);
+    if (ownerUserId) {
+      this.alertsGateway.emitMonitoringAlertChanged(
+        alert.id,
+        'images_updated',
+        alert.userId,
+      );
+    }
+    return updatedAlert;
   }
 
   async updateImageAtIndex(
   id: string,
   imageIndex: number,
   imageUrl: string,
+  ownerUserId?: string,
 ): Promise<Alert> {
   const alert = await this.alertRepository.findOne({
     where: { id },
@@ -179,6 +194,8 @@ export class AlertsService {
       'La alerta con el ID especificado no existe.',
     );
   }
+
+  this.ensureOwner(alert, ownerUserId);
 
   if (alert.status !== 'PENDING') {
     throw new BadRequestException(
@@ -210,7 +227,15 @@ export class AlertsService {
     alert.imageUrl = imageUrl;
   }
 
-  return await this.alertRepository.save(alert);
+  const updatedAlert = await this.alertRepository.save(alert);
+  if (ownerUserId) {
+    this.alertsGateway.emitMonitoringAlertChanged(
+      alert.id,
+      'images_updated',
+      alert.userId,
+    );
+  }
+  return updatedAlert;
 }
 
   async findByUserId(
@@ -245,7 +270,7 @@ export class AlertsService {
     };
   }
 
-  async remove(id: string): Promise<{ message: string }> {
+  async remove(id: string, ownerUserId?: string): Promise<{ message: string }> {
     const alert = await this.alertRepository.findOne({
       where: { id },
     });
@@ -254,6 +279,8 @@ export class AlertsService {
       throw new NotFoundException('La alerta no existe.');
     }
 
+    this.ensureOwner(alert, ownerUserId);
+
     if (alert.status !== 'PENDING') {
       throw new BadRequestException(
         'No puedes cancelar una alerta que ya está en curso o resuelta.',
@@ -261,6 +288,13 @@ export class AlertsService {
     }
 
     await this.alertRepository.remove(alert);
+    if (ownerUserId) {
+      this.alertsGateway.emitMonitoringAlertChanged(
+        alert.id,
+        'deleted',
+        alert.userId,
+      );
+    }
 
     return {
       message: 'Alerta cancelada y eliminada correctamente',
@@ -270,6 +304,7 @@ export class AlertsService {
   async updateDescription(
     id: string,
     newDescription: string,
+    ownerUserId?: string,
   ): Promise<Alert> {
     const alert = await this.alertRepository.findOne({
       where: { id },
@@ -279,6 +314,8 @@ export class AlertsService {
       throw new NotFoundException('La alerta no existe.');
     }
 
+    this.ensureOwner(alert, ownerUserId);
+
     if (alert.status !== 'PENDING') {
       throw new BadRequestException(
         'No puedes modificar una alerta que ya está en curso o resuelta.',
@@ -287,7 +324,15 @@ export class AlertsService {
 
     alert.description = newDescription;
 
-    return await this.alertRepository.save(alert);
+    const updatedAlert = await this.alertRepository.save(alert);
+    if (ownerUserId) {
+      this.alertsGateway.emitMonitoringAlertChanged(
+        alert.id,
+        'description_updated',
+        alert.userId,
+      );
+    }
+    return updatedAlert;
   }
 
   async resolveAlert(
@@ -343,7 +388,10 @@ export class AlertsService {
     return updatedAlert;
   }
 
-  async archiveAlert(id: string): Promise<{ message: string }> {
+  async archiveAlert(
+    id: string,
+    ownerUserId?: string,
+  ): Promise<{ message: string }> {
     const alert = await this.alertRepository.findOne({
       where: { id },
     });
@@ -351,6 +399,8 @@ export class AlertsService {
     if (!alert) {
       throw new NotFoundException('El reporte no existe.');
     }
+
+    this.ensureOwner(alert, ownerUserId);
 
     if (
       alert.status !== 'RESOLVED' &&
@@ -365,14 +415,26 @@ export class AlertsService {
     alert.archivedAt = new Date();
 
     await this.alertRepository.save(alert);
-    this.alertsGateway.emitAlertChanged(
-      alert.userId,
-      alert.id,
-      'archived',
-    );
+    if (ownerUserId) {
+      this.alertsGateway.emitMonitoringAlertChanged(
+        alert.id,
+        'archived',
+        alert.userId,
+      );
+    } else {
+      this.alertsGateway.emitAlertChanged(alert.userId, alert.id, 'archived');
+    }
 
     return {
       message: 'Reporte archivado correctamente',
     };
+  }
+
+  private ensureOwner(alert: Alert, ownerUserId?: string): void {
+    if (ownerUserId && alert.userId !== ownerUserId) {
+      throw new ForbiddenException(
+        'No tienes permisos para modificar este reporte.',
+      );
+    }
   }
 }

@@ -101,6 +101,7 @@ describe('UsersService', () => {
       expect(jwtService.sign).toHaveBeenCalledWith({
         sub: user.id,
         dni: user.dni,
+        role: user.role,
       });
       expect(result).toEqual({
         access_token: 'signed-token',

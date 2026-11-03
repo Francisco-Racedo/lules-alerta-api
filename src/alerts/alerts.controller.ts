@@ -32,6 +32,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../users/jwt-auth.guard.js';
+import { AdminGuard } from '../users/admin.guard.js';
 import type { AuthenticatedRequest } from '../users/auth.types.js';
 
 const MAX_IMAGES = 5;
@@ -79,6 +80,7 @@ export class AlertsController {
   constructor(private readonly alertsService: AlertsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FilesInterceptor('files', MAX_IMAGES, {
       storage: createImageStorage('alert'),
@@ -88,6 +90,7 @@ export class AlertsController {
   )
   async create(
     @Body() body: any,
+    @Req() request: AuthenticatedRequest,
     @UploadedFiles() files?: Array<Express.Multer.File>,
   ) {
     const imagesUrls =
@@ -103,7 +106,7 @@ export class AlertsController {
       description: body.description,
       latitude: parseFloat(body.latitude),
       longitude: parseFloat(body.longitude),
-      userId: body.userId,
+      userId: request.user.id,
       address: body.address === 'null' ? undefined : body.address,
       imageUrl: finalImageUrl,
       images: imagesUrls,
@@ -195,9 +198,11 @@ export class AlertsController {
   }
 
   @Patch(':id/description')
+  @UseGuards(JwtAuthGuard)
   async updateDescription(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('description') description: string,
+    @Req() request: AuthenticatedRequest,
   ) {
     if (!description) {
       throw new BadRequestException(
@@ -205,15 +210,24 @@ export class AlertsController {
       );
     }
 
-    return await this.alertsService.updateDescription(id, description);
+    return await this.alertsService.updateDescription(
+      id,
+      description,
+      request.user.id,
+    );
   }
 
   @Delete(':id')
-  async deleteAlert(@Param('id', ParseUUIDPipe) id: string) {
-    return await this.alertsService.remove(id);
+  @UseGuards(JwtAuthGuard)
+  async deleteAlert(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return await this.alertsService.remove(id, request.user.id);
   }
 
   @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   async updateStatus(
     @Param('id') id: string,
     @Body() updateAlertStatusDto: UpdateAlertStatusDto,
@@ -226,6 +240,7 @@ export class AlertsController {
   }
 
   @Patch(':id/images/:imageIndex')
+  @UseGuards(JwtAuthGuard)
 @UseInterceptors(
   FileInterceptor('file', {
     storage: createImageStorage('alert'),
@@ -237,6 +252,7 @@ async updateImageAtIndex(
   @Param('id', ParseUUIDPipe) id: string,
   @Param('imageIndex', ParseIntPipe) imageIndex: number,
   @UploadedFile() file: Express.Multer.File,
+  @Req() request: AuthenticatedRequest,
 ) {
   if (!file) {
     throw new BadRequestException(
@@ -256,10 +272,12 @@ async updateImageAtIndex(
     id,
     imageIndex,
     imageUrl,
+    request.user.id,
   );
 }
 
   @Patch(':id/image')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: createImageStorage('alert'),
@@ -270,6 +288,7 @@ async updateImageAtIndex(
   async updateImage(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Req() request: AuthenticatedRequest,
   ) {
     if (!file) {
       throw new BadRequestException(
@@ -279,15 +298,24 @@ async updateImageAtIndex(
 
     const imageUrl = `/uploads/alerts/${file.filename}`;
 
-    return await this.alertsService.updateImage(id, imageUrl);
+    return await this.alertsService.updateImage(
+      id,
+      imageUrl,
+      request.user.id,
+    );
   }
 
   @Patch(':id/archive')
-  async archiveAlert(@Param('id', ParseUUIDPipe) id: string) {
-    return await this.alertsService.archiveAlert(id);
+  @UseGuards(JwtAuthGuard)
+  async archiveAlert(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return await this.alertsService.archiveAlert(id, request.user.id);
   }
 
   @Post(':id/resolution')
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
