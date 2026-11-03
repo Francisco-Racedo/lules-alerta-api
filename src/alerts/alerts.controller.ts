@@ -28,6 +28,7 @@ import { CreateAlertDto } from './dto/create-alert.dto.js';
 import { UpdateAlertStatusDto } from './dto/update-alert-status.dto.js';
 import {
   ApiBody,
+  ApiBearerAuth,
   ApiConsumes,
   ApiQuery,
 } from '@nestjs/swagger';
@@ -81,6 +82,7 @@ export class AlertsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(
     FilesInterceptor('files', MAX_IMAGES, {
       storage: createImageStorage('alert'),
@@ -141,6 +143,7 @@ export class AlertsController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async getCurrentUserAlerts(
     @Req() request: AuthenticatedRequest,
     @Query('page') page: string = '1',
@@ -199,6 +202,7 @@ export class AlertsController {
 
   @Patch(':id/description')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async updateDescription(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('description') description: string,
@@ -219,6 +223,7 @@ export class AlertsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async deleteAlert(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
@@ -228,6 +233,7 @@ export class AlertsController {
 
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   async updateStatus(
     @Param('id') id: string,
     @Body() updateAlertStatusDto: UpdateAlertStatusDto,
@@ -241,6 +247,7 @@ export class AlertsController {
 
   @Patch(':id/images/:imageIndex')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
 @UseInterceptors(
   FileInterceptor('file', {
     storage: createImageStorage('alert'),
@@ -278,6 +285,7 @@ async updateImageAtIndex(
 
   @Patch(':id/image')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor('file', {
       storage: createImageStorage('alert'),
@@ -307,6 +315,7 @@ async updateImageAtIndex(
 
   @Patch(':id/archive')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async archiveAlert(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: AuthenticatedRequest,
@@ -316,6 +325,7 @@ async updateImageAtIndex(
 
   @Post(':id/resolution')
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
