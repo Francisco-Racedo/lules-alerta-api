@@ -86,6 +86,7 @@ export class UsersService {
       id: user.id,
       nombre: user.nombre,
       dni: user.dni,
+      role: user.role,
       telefono: user.telefono,
       fotoPerfil: user.fotoPerfil,
       email: user.email,
