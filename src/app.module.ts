@@ -13,6 +13,7 @@ import { Alert } from './alerts/entities/alert.entity.js';
 import { NoticesModule } from './notices/notices.module.js';
 import { Notice } from './notices/entities/notice.entity.js';
 import { NoticeRead } from './notices/entities/notice-read.entity.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 
 @Module({
@@ -49,6 +50,7 @@ import { NoticeRead } from './notices/entities/notice-read.entity.js';
     UsersModule,
     AlertsModule,
     NoticesModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [
