@@ -7,11 +7,13 @@ import { AlertHistory } from './entities/alert-history.entity.js';
 import { AlertsGateway } from './alerts.gateway.js'; // <-- Importamos el Gateway
 import { AlertResolution } from './entities/alert-resolution.entity.js';
 import { UsersModule } from '../users/users.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Alert, AlertHistory, AlertResolution]),
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [AlertsController],
   providers: [AlertsService, AlertsGateway], // <-- Lo agregamos como proveedor

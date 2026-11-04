@@ -25,6 +25,9 @@ describe('AlertsController', () => {
 
   const createFile = (filename: string): Express.Multer.File =>
     ({ filename }) as Express.Multer.File;
+  const request = {
+    user: { id: 'user-id' },
+  } as AuthenticatedRequest;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -70,6 +73,7 @@ describe('AlertsController', () => {
           userId: 'user-id',
           address: 'Dirección de prueba',
         },
+        request,
         files,
       );
 
@@ -106,7 +110,7 @@ describe('AlertsController', () => {
         longitude: '-65.3392',
         userId: 'user-id',
         address: 'null',
-      });
+      }, request);
 
       expect(alertsService.create).toHaveBeenCalledWith({
         category: 'Salud',
@@ -265,18 +269,20 @@ describe('AlertsController', () => {
       const result = await controller.updateDescription(
         'alert-id',
         'Descripción actualizada',
+        request,
       );
 
       expect(alertsService.updateDescription).toHaveBeenCalledWith(
         'alert-id',
         'Descripción actualizada',
+        'user-id',
       );
       expect(result).toBe(expectedAlert);
     });
 
     it('rechaza una descripción vacía', async () => {
       await expect(
-        controller.updateDescription('alert-id', ''),
+        controller.updateDescription('alert-id', '', request),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(alertsService.updateDescription).not.toHaveBeenCalled();
@@ -291,9 +297,9 @@ describe('AlertsController', () => {
 
       alertsService.remove.mockResolvedValue(expectedResponse);
 
-      const result = await controller.deleteAlert('alert-id');
+      const result = await controller.deleteAlert('alert-id', request);
 
-      expect(alertsService.remove).toHaveBeenCalledWith('alert-id');
+      expect(alertsService.remove).toHaveBeenCalledWith('alert-id', 'user-id');
       expect(result).toBe(expectedResponse);
     });
   });
@@ -355,12 +361,14 @@ describe('AlertsController', () => {
         'alert-id',
         0,
         file,
+        request,
       );
 
       expect(alertsService.updateImageAtIndex).toHaveBeenCalledWith(
         'alert-id',
         0,
         '/uploads/alerts/replacement.jpg',
+        'user-id',
       );
       expect(result).toBe(expectedAlert);
     });
@@ -371,6 +379,7 @@ describe('AlertsController', () => {
           'alert-id',
           0,
           undefined as unknown as Express.Multer.File,
+          request,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -381,7 +390,7 @@ describe('AlertsController', () => {
       const file = createFile('replacement.jpg');
 
       await expect(
-        controller.updateImageAtIndex('alert-id', 5, file),
+        controller.updateImageAtIndex('alert-id', 5, file, request),
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(alertsService.updateImageAtIndex).not.toHaveBeenCalled();
@@ -398,11 +407,12 @@ describe('AlertsController', () => {
 
       alertsService.updateImage.mockResolvedValue(expectedAlert);
 
-      const result = await controller.updateImage('alert-id', file);
+      const result = await controller.updateImage('alert-id', file, request);
 
       expect(alertsService.updateImage).toHaveBeenCalledWith(
         'alert-id',
         '/uploads/alerts/legacy.jpg',
+        'user-id',
       );
       expect(result).toBe(expectedAlert);
     });
@@ -412,6 +422,7 @@ describe('AlertsController', () => {
         controller.updateImage(
           'alert-id',
           undefined as unknown as Express.Multer.File,
+          request,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -427,9 +438,12 @@ describe('AlertsController', () => {
 
       alertsService.archiveAlert.mockResolvedValue(expectedResponse);
 
-      const result = await controller.archiveAlert('alert-id');
+      const result = await controller.archiveAlert('alert-id', request);
 
-      expect(alertsService.archiveAlert).toHaveBeenCalledWith('alert-id');
+      expect(alertsService.archiveAlert).toHaveBeenCalledWith(
+        'alert-id',
+        'user-id',
+      );
       expect(result).toBe(expectedResponse);
     });
   });

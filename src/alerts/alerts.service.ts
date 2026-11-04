@@ -11,6 +11,7 @@ import { AlertHistory } from './entities/alert-history.entity.js';
 import { AlertResolution } from './entities/alert-resolution.entity.js';
 import { CreateAlertDto } from './dto/create-alert.dto.js';
 import { AlertsGateway } from './alerts.gateway.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class AlertsService {
@@ -22,6 +23,7 @@ export class AlertsService {
     @InjectRepository(AlertResolution)
     private readonly resolutionRepository: Repository<AlertResolution>,
     private readonly alertsGateway: AlertsGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createAlertDto: CreateAlertDto): Promise<Alert> {
@@ -66,6 +68,12 @@ export class AlertsService {
     await this.historyRepository.save(historyEntry);
 
     this.alertsGateway.emitNewAlert(savedAlert);
+    void this.notificationsService.notifyAdministrators(
+      savedAlert,
+      'created',
+      'Nuevo reporte ciudadano',
+      `${category}: ${description}`,
+    );
 
     return savedAlert;
   }
@@ -122,6 +130,13 @@ export class AlertsService {
         alert.id,
         'status_changed',
       );
+      void this.notificationsService.notifyUser(
+        alert.userId,
+        alert,
+        'status_changed',
+        'Actualización de tu reporte',
+        `Tu reporte de ${alert.category} cambió a ${status}.`,
+      );
       return updatedAlert;
     }
 
@@ -174,6 +189,12 @@ export class AlertsService {
         alert.id,
         'images_updated',
         alert.userId,
+      );
+      void this.notificationsService.notifyAdministrators(
+        alert,
+        'images_updated',
+        'Reporte actualizado',
+        `Se actualizaron las imágenes de un reporte de ${alert.category}.`,
       );
     }
     return updatedAlert;
@@ -233,6 +254,12 @@ export class AlertsService {
       alert.id,
       'images_updated',
       alert.userId,
+    );
+    void this.notificationsService.notifyAdministrators(
+      alert,
+      'images_updated',
+      'Reporte actualizado',
+      `Se actualizaron las imágenes de un reporte de ${alert.category}.`,
     );
   }
   return updatedAlert;
@@ -294,6 +321,12 @@ export class AlertsService {
         'deleted',
         alert.userId,
       );
+      void this.notificationsService.notifyAdministrators(
+        alert,
+        'deleted',
+        'Reporte cancelado',
+        `Se canceló un reporte de ${alert.category}.`,
+      );
     }
 
     return {
@@ -330,6 +363,12 @@ export class AlertsService {
         alert.id,
         'description_updated',
         alert.userId,
+      );
+      void this.notificationsService.notifyAdministrators(
+        alert,
+        'description_updated',
+        'Reporte actualizado',
+        `Se modificó la descripción de un reporte de ${alert.category}.`,
       );
     }
     return updatedAlert;
@@ -384,6 +423,17 @@ export class AlertsService {
       alert.userId,
       alert.id,
       finalStatus === 'RESOLVED' ? 'resolved' : 'dismissed',
+    );
+    void this.notificationsService.notifyUser(
+      alert.userId,
+      alert,
+      finalStatus === 'RESOLVED' ? 'resolved' : 'dismissed',
+      finalStatus === 'RESOLVED'
+        ? 'Reporte resuelto'
+        : 'Reporte descartado',
+      finalStatus === 'RESOLVED'
+        ? 'La autoridad resolvió tu reporte.'
+        : 'La autoridad descartó tu reporte.',
     );
     return updatedAlert;
   }

@@ -12,6 +12,7 @@ import { AlertsGateway } from './alerts.gateway.js';
 import { Alert } from './entities/alert.entity.js';
 import { AlertHistory } from './entities/alert-history.entity.js';
 import { AlertResolution } from './entities/alert-resolution.entity.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 describe('AlertsService', () => {
   let service: AlertsService;
@@ -38,6 +39,11 @@ describe('AlertsService', () => {
     emitNewAlert: vi.fn(),
     emitAlertChanged: vi.fn(),
     emitMonitoringAlertChanged: vi.fn(),
+  };
+
+  const notificationsService = {
+    notifyAdministrators: vi.fn(),
+    notifyUser: vi.fn(),
   };
 
   const createAlert = (overrides: Partial<Alert> = {}): Alert =>
@@ -79,6 +85,10 @@ describe('AlertsService', () => {
         {
           provide: AlertsGateway,
           useValue: alertsGateway,
+        },
+        {
+          provide: NotificationsService,
+          useValue: notificationsService,
         },
       ],
     }).compile();
