@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, InternalServerErrorException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, InternalServerErrorException, UnauthorizedException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -15,6 +15,8 @@ import { randomInt, createHash } from 'node:crypto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -129,7 +131,13 @@ export class UsersService {
     });
 
     await this.passwordResetRepository.save(resetCode);
-    await this.passwordResetMailer.sendPasswordResetCode(user.email, code);
+    try {
+      await this.passwordResetMailer.sendPasswordResetCode(user.email, code);
+    } catch (error: any) {
+      this.logger.error(
+        `Fallo al enviar correo a ${user.email}: ${error?.message}. Código generado: ${code}`,
+      );
+    }
 
     return genericResponse;
   }
