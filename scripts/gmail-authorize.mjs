@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { google } from 'googleapis';
 
 const credentialsPath =
@@ -17,16 +18,12 @@ if (!desktop?.client_id || !desktop.client_secret) {
 }
 
 const server = createServer();
-await new Promise((resolve) => {
-  server.listen(0, '127.0.0.1', resolve);
+const PORT = 8085;
+await new Promise((resolveServer) => {
+  server.listen(PORT, '127.0.0.1', () => resolveServer(null));
 });
 
-const address = server.address();
-if (!address || typeof address === 'string') {
-  throw new Error('No se pudo abrir el puerto local para la autorización.');
-}
-
-const redirectUri = `http://127.0.0.1:${address.port}/oauth2callback`;
+const redirectUri = `http://127.0.0.1:${PORT}/oauth2callback`;
 const client = new google.auth.OAuth2(
   desktop.client_id,
   desktop.client_secret,
@@ -40,12 +37,12 @@ const authorizationUrl = client.generateAuthUrl({
 
 console.log('Abre esta URL en tu navegador y autoriza la cuenta Gmail configurada:');
 console.log(authorizationUrl);
-console.log('Esperando la autorización...');
+console.log('Esperando la autorización (tienes 30 minutos)...');
 
-const code = await new Promise((resolve, reject) => {
+const code = await new Promise((resolveCode, reject) => {
   const timeout = setTimeout(() => {
-    reject(new Error('La autorización excedió el tiempo de espera de 5 minutos.'));
-  }, 5 * 60 * 1000);
+    reject(new Error('La autorización excedió el tiempo de espera de 30 minutos.'));
+  }, 30 * 60 * 1000);
 
   server.on('request', (request, response) => {
     const requestUrl = new URL(request.url ?? '/', redirectUri);
@@ -67,8 +64,8 @@ const code = await new Promise((resolve, reject) => {
     }
 
     response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    response.end('Autorización completada. Puedes cerrar esta ventana.');
-    resolve(authorizationCode);
+    response.end('¡Autorización completada con éxito! Ya puedes cerrar esta ventana.');
+    resolveCode(authorizationCode);
   });
 });
 
@@ -81,12 +78,24 @@ if (!tokens.refresh_token) {
   );
 }
 
-console.log('\nAutorización completada.');
-console.log('Configura estos valores como variables seguras del backend:');
-console.log(`GMAIL_CLIENT_ID=${desktop.client_id}`);
-console.log(`GMAIL_CLIENT_SECRET=${desktop.client_secret}`);
-console.log(`GMAIL_REFRESH_TOKEN=${tokens.refresh_token}`);
-console.log('GMAIL_SENDER=franciscor829@gmail.com');
-console.log(
-  '\nNo compartas estos valores ni los pegues en el repositorio o en el chat.',
-);
+console.log('\n======================================================');
+console.log('✅ ¡AUTORIZACIÓN COMPLETADA CON ÉXITO!');
+console.log('======================================================');
+console.log('NUEVO GMAIL_REFRESH_TOKEN:');
+console.log(tokens.refresh_token);
+
+// Actualizar automáticamente .env local
+try {
+  const envPath = resolve(process.cwd(), '.env');
+  let envContent = await readFile(envPath, 'utf8');
+  envContent = envContent.replace(
+    /GMAIL_REFRESH_TOKEN=.*/,
+    `GMAIL_REFRESH_TOKEN=${tokens.refresh_token}`,
+  );
+  await writeFile(envPath, envContent, 'utf8');
+  console.log('\n📄 Archivo .env local actualizado automáticamente.');
+} catch (e) {
+  console.log('No se pudo actualizar .env local automáticamente:', e.message);
+}
+
+console.log('\nRecuerda actualizar GMAIL_REFRESH_TOKEN en las variables de Render.');
